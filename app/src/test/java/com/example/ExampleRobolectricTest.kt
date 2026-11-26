@@ -47,7 +47,7 @@ class ExampleRobolectricTest {
     fun `read app name from context`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val appName = context.getString(R.string.app_name)
-        assertEquals("Redline Solo", appName)
+        assertEquals("CYBERPUNK RED", appName)
     }
 
     @Test
@@ -84,5 +84,41 @@ class ExampleRobolectricTest {
         val restoredCampaign = db.campaignDao().getCampaignById(campaignId)!!
         assertEquals(1, restoredCampaign.inGameDay)
         assertEquals(20, restoredCampaign.inGameHour)
+    }
+
+    @Test
+    fun `pregen campaign creation atlas district incident deploy and dgd faction import persist in room`() = runTest {
+        val pregen = com.example.core.rules.OfficialStreetratPregensCatalog.allPregens.first()
+        val campaignId = campaignRepository.createCampaignFromPregen(
+            campaignTitle = "Incident em Japantown",
+            settingNotes = "Night City",
+            pregen = pregen
+        )
+        val campaign = db.campaignDao().getCampaignById(campaignId)!!
+        assertEquals("E", campaign.currentDistrictCode)
+        assertEquals(pregen.startingCashEb, campaign.eurodollars)
+
+        val skills = db.characterDao().observeSkills(
+            db.characterDao().observePrimaryCharacter(campaignId).first()!!.id
+        ).first()
+        assertEquals(20, skills.size)
+
+        val diceEngine = com.example.core.rules.DiceEngine()
+        val sessionRepo = com.example.data.repository.SessionRepository(
+            systemsDao = db.systemsDao(),
+            campaignDao = db.campaignDao(),
+            skillCheckEngine = com.example.core.rules.SkillCheckEngine(diceEngine),
+            netrunningEngine = com.example.core.rules.NetrunningEngine(diceEngine)
+        )
+        sessionRepo.setCurrentDistrict(campaign, "H")
+        assertEquals("H", db.campaignDao().getCampaignById(campaignId)!!.currentDistrictCode)
+
+        sessionRepo.deployTheIncidentAdventure(campaign)
+        assertTrue(db.systemsDao().observeMissions(campaignId).first().any { it.title.contains("The Incident") })
+        assertEquals(5, db.systemsDao().observeNetNodes(campaignId).first().size)
+
+        val importedNpcs = sessionRepo.importDgdFaction(campaign, "danger_gal")
+        assertTrue(importedNpcs > 0)
+        assertTrue(db.systemsDao().observeNpcsAndFactions(campaignId).first().any { it.isFaction })
     }
 }

@@ -45,6 +45,7 @@ fun DiceRollerModal(
     initialSkillLevel: Int,
     maxAvailableLuck: Int,
     woundPenalty: Int,
+    armorPenalty: Int = 0,
     skills: List<CharacterSkillEntity>,
     onDismiss: () -> Unit,
     onExecuteRoll: (
@@ -187,8 +188,9 @@ fun DiceRollerModal(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val activeArmorMod = if (selectedStat == RedStat.REF || selectedStat == RedStat.DEX || selectedStat == RedStat.MOVE) armorPenalty else 0
                 Text(
-                    text = "Modificador manual: ${if (modifier >= 0) "+$modifier" else modifier} (Ferim: $woundPenalty)",
+                    text = "Mod: ${if (modifier >= 0) "+$modifier" else modifier} (Ferim: $woundPenalty | Armad: $activeArmorMod)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

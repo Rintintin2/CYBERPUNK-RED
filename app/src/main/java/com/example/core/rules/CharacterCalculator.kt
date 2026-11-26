@@ -67,30 +67,71 @@ object CharacterCalculator {
         }
     }
 
+    fun computeArmorPenalty(
+        headArmorSp: Int,
+        bodyArmorSp: Int,
+        overrideArmorPenalty: Int? = null
+    ): Int {
+        if (overrideArmorPenalty != null) return overrideArmorPenalty
+        val maxSp = maxOf(headArmorSp, bodyArmorSp)
+        return when {
+            maxSp >= 15 -> -4
+            maxSp >= 12 -> -2
+            else -> 0
+        }
+    }
+
     fun computeDerivedMetrics(
         stats: CharacterStats,
         currentHp: Int,
         totalHumanityLoss: Int,
         maxHumanityReduction: Int = 0,
-        isDead: Boolean = false
+        isDead: Boolean = false,
+        headArmorSp: Int = 0,
+        bodyArmorSp: Int = 0,
+        installedCyberware: List<com.example.data.local.entity.CyberwareEntity> = emptyList(),
+        overrideArmorPenalty: Int? = null
     ): DerivedCharacterMetrics {
-        val maxHp = calculateMaxHp(stats.body, stats.willpower)
+        val effectiveBody = if (installedCyberware.isNotEmpty()) {
+            CyberwareValidator.computeEffectiveBody(stats.body, installedCyberware)
+        } else {
+            stats.body
+        }
+        val effectiveMaxHumReduction = if (maxHumanityReduction == 0 && installedCyberware.isNotEmpty()) {
+            installedCyberware
+                .filter { it.installed && it.humanityCost > 0 }
+                .sumOf { if (CyberwareValidator.isBorgware(it)) 4 else 2 }
+        } else {
+            maxHumanityReduction.coerceAtLeast(0)
+        }
+        val maxHp = calculateMaxHp(effectiveBody, stats.willpower)
         val threshold = calculateSeriouslyWoundedThreshold(maxHp)
         val rawMaxHumanity = calculateMaxHumanity(stats.empathyMax)
-        val effectiveMaxHumanity = (rawMaxHumanity - maxHumanityReduction.coerceAtLeast(0)).coerceAtLeast(0)
+        val effectiveMaxHumanity = (rawMaxHumanity - effectiveMaxHumReduction).coerceAtLeast(0)
         val currentHumanity = (rawMaxHumanity - totalHumanityLoss.coerceAtLeast(0))
             .coerceIn(0, effectiveMaxHumanity)
         val currentEmp = calculateCurrentEmpathy(currentHumanity)
         val woundState = evaluateWoundState(currentHp = currentHp, maxHp = maxHp, isDead = isDead)
+        val painEditorActive = CyberwareValidator.hasPainEditor(installedCyberware)
+        val effectiveWoundPenalty = if (painEditorActive && woundState == WoundState.SERIOUSLY_WOUNDED) {
+            0
+        } else {
+            woundState.actionPenalty
+        }
+        val armorPenalty = computeArmorPenalty(headArmorSp, bodyArmorSp, overrideArmorPenalty)
         return DerivedCharacterMetrics(
             maxHp = maxHp,
             seriouslyWoundedThreshold = threshold,
-            deathSaveBase = stats.body,
+            deathSaveBase = effectiveBody,
             maxHumanity = effectiveMaxHumanity,
             currentHumanity = currentHumanity,
             currentEmpathy = currentEmp,
             woundState = woundState,
-            woundPenalty = woundState.actionPenalty
+            woundPenalty = woundState.actionPenalty,
+            armorPenalty = armorPenalty,
+            effectiveWoundPenalty = effectiveWoundPenalty,
+            painEditorActive = painEditorActive,
+            effectiveBody = effectiveBody
         )
     }
 }

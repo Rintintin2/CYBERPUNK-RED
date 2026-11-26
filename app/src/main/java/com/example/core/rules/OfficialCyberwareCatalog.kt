@@ -139,5 +139,7 @@ object OfficialCyberwareCatalog {
         OfficialCyberwareSpec("Linear Frame β (Beta)", "Implanted Linear Frame Beta", CyberwareCategory.BORGWARE, "Hospital", 5000, PriceCategory.LUXURY, 14, "4d6", 0, true, "Requer COR 8 + 2x Grafted Muscle. Aumenta COR p/ 14"),
         OfficialCyberwareSpec("MultiOptic Mount", "MultiOptic Mount", CyberwareCategory.BORGWARE, "Hospital", 1000, PriceCategory.VERY_EXPENSIVE, 14, "4d6", 0, true, "Permite montar até 5 Ciberolhos adicionais"),
         OfficialCyberwareSpec("Sensor Array", "Sensor Array", CyberwareCategory.BORGWARE, "Clinic", 1000, PriceCategory.VERY_EXPENSIVE, 14, "4d6", 0, true, "Requer Cyberaudio Suite. +5 slots adicionais de Ciberáudio")
-    ) + OfficialDlcCyberwareAndFbc.dlcCyberware + OfficialBlackChromeCyberwareCatalog.allBlackChromeCyberware
+    ) + OfficialDlcCyberwareAndFbc.dlcCyberware +
+        OfficialBlackChromeCyberwareCatalog.allBlackChromeCyberware +
+        OfficialStealthAndAgentsCatalog.allStealthAndAgentCyberware
 }

@@ -20,9 +20,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
@@ -56,7 +60,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.R
+import com.example.core.rules.CharacterCalculator
+import com.example.core.rules.OfficialNightCityAtlasCatalog
+import com.example.core.rules.OfficialStreetratPregensCatalog
 import com.example.core.rules.RedRole
+import com.example.core.rules.StreetratPregenSpec
 import com.example.data.local.entity.CampaignEntity
 import com.example.data.local.entity.CampaignSaveEntity
 import com.example.ui.components.CyberBadge
@@ -81,6 +89,8 @@ fun CampaignHubScreen(
     onCreateSave: (String) -> Unit,
     onRestoreSave: (CampaignSaveEntity) -> Unit,
     onDeleteSave: (Long) -> Unit,
+    onCreateCampaignFromPregen: (title: String, setting: String, pregen: StreetratPregenSpec) -> Unit = { _, _, _ -> },
+    onOpenAtlas: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -120,6 +130,9 @@ fun CampaignHubScreen(
             }
         } else {
             item {
+                val activeDistrict = remember(active.currentDistrictCode) {
+                    OfficialNightCityAtlasCatalog.findDistrictByCode(active.currentDistrictCode)
+                }
                 SectionHeader(
                     title = "Relógio & Economia de Night City",
                     subtitle = active.settingNotes,
@@ -132,7 +145,7 @@ fun CampaignHubScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "DIA ${active.inGameDay} • ${active.inGameHour.toString().padStart(2, '0')}:00",
                                 style = MaterialTheme.typography.headlineSmall,
@@ -143,6 +156,13 @@ fun CampaignHubScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            if (activeDistrict != null) {
+                                Text(
+                                    text = "Distrito: ${activeDistrict.code} • ${activeDistrict.namePt} (${activeDistrict.zone.shortLabelPt})",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = CyberEmerald
+                                )
+                            }
                         }
                         CyberBadge(
                             text = "${active.eurodollars} eb",
@@ -170,6 +190,21 @@ fun CampaignHubScreen(
                                 Text(label)
                             }
                         }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = onOpenAtlas,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("open_atlas_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Explore,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Mapa Atlas de Night City (24 Distritos)")
                     }
                 }
             }
@@ -305,6 +340,10 @@ fun CampaignHubScreen(
             onConfirm = { title, setting, handle, role, eb ->
                 onCreateCampaign(title, setting, handle, role, eb)
                 showCreateDialog = false
+            },
+            onConfirmPregen = { title, setting, pregen ->
+                onCreateCampaignFromPregen(title, setting, pregen)
+                showCreateDialog = false
             }
         )
     }
@@ -361,7 +400,7 @@ private fun CampaignHeroBanner(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                CyberBadge(text = "REDLINE SOLO • CORE v1", color = RedlineCrimson)
+                CyberBadge(text = "CYBERPUNK RED • SOLO", color = RedlineCrimson)
                 Button(
                     onClick = onNewCampaignClick,
                     colors = ButtonDefaults.buttonColors(containerColor = RedlineCrimson),
@@ -428,8 +467,11 @@ private fun ArchitectureReadinessCard(uiState: MainUiState) {
 @Composable
 private fun CreateCampaignDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, RedRole, Int) -> Unit
+    onConfirm: (String, String, String, RedRole, Int) -> Unit,
+    onConfirmPregen: (String, String, StreetratPregenSpec) -> Unit
 ) {
+    var usePregen by remember { mutableStateOf(false) }
+    var selectedPregen by remember { mutableStateOf(OfficialStreetratPregensCatalog.allPregens.first()) }
     var title by remember { mutableStateOf("") }
     var setting by remember { mutableStateOf("Night City — Era do Vermelho (2045)") }
     var handle by remember { mutableStateOf("") }
@@ -440,7 +482,24 @@ private fun CreateCampaignDialog(
         onDismissRequest = onDismiss,
         title = { Text("Nova Campanha Solo") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = !usePregen,
+                        onClick = { usePregen = false },
+                        label = { Text("Personalizado") },
+                        modifier = Modifier.testTag("campaign_mode_custom")
+                    )
+                    FilterChip(
+                        selected = usePregen,
+                        onClick = { usePregen = true },
+                        label = { Text("Single Shot (10)") },
+                        modifier = Modifier.testTag("campaign_mode_pregen")
+                    )
+                }
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
@@ -452,42 +511,79 @@ private fun CreateCampaignDialog(
                         .testTag("campaign_title_input")
                 )
                 OutlinedTextField(
-                    value = handle,
-                    onValueChange = { handle = it },
-                    label = { Text("Codinome (Handle) do Edgerunner") },
-                    placeholder = { Text("Ex: Vex-9") },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("edgerunner_handle_input")
-                )
-                OutlinedTextField(
-                    value = startingEb,
-                    onValueChange = { startingEb = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("Eurodólares Iniciais (eb)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
                     value = setting,
                     onValueChange = { setting = it },
                     label = { Text("Cenário / Distrito") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Text(
-                    text = "Função Oficial (Role):",
-                    style = MaterialTheme.typography.labelMedium
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    RedRole.entries.forEach { role ->
-                        FilterChip(
-                            selected = selectedRole == role,
-                            onClick = { selectedRole = role },
-                            label = { Text(role.displayNamePt) }
+                if (!usePregen) {
+                    OutlinedTextField(
+                        value = handle,
+                        onValueChange = { handle = it },
+                        label = { Text("Codinome (Handle) do Edgerunner") },
+                        placeholder = { Text("Ex: Vex-9") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("edgerunner_handle_input")
+                    )
+                    OutlinedTextField(
+                        value = startingEb,
+                        onValueChange = { startingEb = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Eurodólares Iniciais (eb)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = "Função Oficial (Role):",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        RedRole.entries.forEach { role ->
+                            FilterChip(
+                                selected = selectedRole == role,
+                                onClick = { selectedRole = role },
+                                label = { Text(role.displayNamePt) }
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Edgerunner Pronto (Single Shot Pack):",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = CyberCyan
+                    )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(OfficialStreetratPregensCatalog.allPregens, key = { it.id }) { p ->
+                            FilterChip(
+                                selected = selectedPregen.id == p.id,
+                                onClick = { selectedPregen = p },
+                                label = { Text("${p.handle} (${p.role.displayNamePt})") }
+                            )
+                        }
+                    }
+                    val maxHp = CharacterCalculator.calculateMaxHp(selectedPregen.stats.body, selectedPregen.stats.willpower)
+                    CyberPanel(containerColor = CyberSurfaceElevated) {
+                        Text(
+                            text = "${selectedPregen.handle} • ${selectedPregen.role.displayNamePt} (Rank ${selectedPregen.roleRank})",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = CyberAmber
+                        )
+                        Text(
+                            text = "PV $maxHp • HUM ${selectedPregen.currentHumanity}/${selectedPregen.maxHumanity} • PA ${selectedPregen.bodySp} • ${selectedPregen.startingCashEb}eb",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = CyberCyan
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(selectedPregen.bioPt, style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            text = "Inclui ${selectedPregen.skills.size} perícias, ${selectedPregen.cyberware.size} cyberwares e ${selectedPregen.inventory.size} itens oficiais.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -496,15 +592,19 @@ private fun CreateCampaignDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    onConfirm(
-                        title,
-                        setting,
-                        handle,
-                        selectedRole,
-                        startingEb.toIntOrNull() ?: 2550
-                    )
+                    if (usePregen) {
+                        onConfirmPregen(title, setting, selectedPregen)
+                    } else {
+                        onConfirm(
+                            title,
+                            setting,
+                            handle,
+                            selectedRole,
+                            startingEb.toIntOrNull() ?: 2550
+                        )
+                    }
                 },
-                enabled = title.isNotBlank() && handle.isNotBlank(),
+                enabled = title.isNotBlank() && (usePregen || handle.isNotBlank()),
                 colors = ButtonDefaults.buttonColors(containerColor = RedlineCrimson),
                 modifier = Modifier.testTag("confirm_create_campaign_button")
             ) {

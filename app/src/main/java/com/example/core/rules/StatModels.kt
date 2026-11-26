@@ -86,5 +86,14 @@ data class DerivedCharacterMetrics(
     val currentHumanity: Int,
     val currentEmpathy: Int,
     val woundState: WoundState,
-    val woundPenalty: Int
-)
+    val woundPenalty: Int,
+    val armorPenalty: Int = 0,
+    val effectiveWoundPenalty: Int = woundPenalty,
+    val painEditorActive: Boolean = false,
+    val effectiveBody: Int = deathSaveBase
+) {
+    fun armorStatPenalty(stat: RedStat): Int =
+        if (stat == RedStat.REF || stat == RedStat.DEX || stat == RedStat.MOVE) armorPenalty else 0
+
+    fun totalCheckPenalty(stat: RedStat): Int = effectiveWoundPenalty + armorStatPenalty(stat)
+}

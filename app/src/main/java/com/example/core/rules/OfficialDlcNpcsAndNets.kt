@@ -375,84 +375,84 @@ object OfficialDlcNpcsAndNets {
             namePt = "Starter Drone Rig",
             sourcePt = "Single Shot Pack (Vol 1)",
             totalCostEb = 10050,
-            summaryPt = "3 andares • Demônio Imp + Mini Air Drone.",
+            summaryPt = "3 andares • Demônio Imp + Black ICE Raven + Mini Air Drone.",
             floors = listOf(
                 PremadeNetFloorSpec("1", NetNodeType.PASSWORD, "Senha de Acesso", 6),
-                PremadeNetFloorSpec("2", NetNodeType.CONTROL_NODE, "Nó Controle (Mini Air Drone)", 6),
-                PremadeNetFloorSpec("3", NetNodeType.FILE, "Telemetria de Drone", 6)
+                PremadeNetFloorSpec("2", NetNodeType.BLACK_ICE, "Raven (Black ICE)", 15),
+                PremadeNetFloorSpec("3", NetNodeType.CONTROL_NODE, "Nó Controle: Mini Air Drone (+Imp)", 6)
             )
         ),
         PremadeNetArchSpec(
             namePt = "Conapt Security",
             sourcePt = "Single Shot Pack (Vol 1)",
             totalCostEb = 15050,
-            summaryPt = "3 andares • Imp + Wisp + Ground Drone.",
+            summaryPt = "3 andares • Imp + Black ICE Wisp + Ground Drone.",
             floors = listOf(
-                PremadeNetFloorSpec("1", NetNodeType.BLACK_ICE, "Wisp (Black ICE)", 15),
-                PremadeNetFloorSpec("2", NetNodeType.CONTROL_NODE, "Nó Controle (Ground Drone)", 8),
-                PremadeNetFloorSpec("3", NetNodeType.PASSWORD, "Senha Administrativa", 8)
+                PremadeNetFloorSpec("1", NetNodeType.PASSWORD, "Senha de Acesso", 6),
+                PremadeNetFloorSpec("2", NetNodeType.BLACK_ICE, "Wisp (Black ICE)", 15),
+                PremadeNetFloorSpec("3", NetNodeType.CONTROL_NODE, "Nó Controle: Ground Drone (+Imp)", 6)
             )
         ),
         PremadeNetArchSpec(
             namePt = "Oasis Security",
             sourcePt = "Single Shot Pack (Vol 1)",
             totalCostEb = 16000,
-            summaryPt = "5 andares • Imp + Hellhound + Câmeras + Torreta.",
+            summaryPt = "5 andares • Imp + Hellhound + Câmeras + Torreta Automatizada.",
             floors = listOf(
                 PremadeNetFloorSpec("1", NetNodeType.PASSWORD, "Senha Balcão", 6),
                 PremadeNetFloorSpec("2", NetNodeType.CONTROL_NODE, "Câmeras de Observação", 8),
-                PremadeNetFloorSpec("3", NetNodeType.BLACK_ICE, "Hellhound (Black ICE)", 20),
-                PremadeNetFloorSpec("4", NetNodeType.CONTROL_NODE, "Automated Turret", 8),
-                PremadeNetFloorSpec("5", NetNodeType.FILE, "Caixa & Inventário", 8)
+                PremadeNetFloorSpec("3", NetNodeType.PASSWORD, "Trava Interna", 8),
+                PremadeNetFloorSpec("4", NetNodeType.BLACK_ICE, "Hellhound (Black ICE)", 20),
+                PremadeNetFloorSpec("5", NetNodeType.CONTROL_NODE, "Automated Turret (+Imp)", 8)
             )
         ),
         PremadeNetArchSpec(
             namePt = "Clinic Security",
             sourcePt = "Single Shot Pack (Vol 1)",
             totalCostEb = 16050,
-            summaryPt = "6 andares • Imp + Wisp + Câmeras + Elevador Gás.",
+            summaryPt = "6 andares • Imp + Wisp + Câmeras + Agenda + Elevador Sleep Gas.",
             floors = listOf(
                 PremadeNetFloorSpec("1", NetNodeType.PASSWORD, "Recepção Clínica", 6),
-                PremadeNetFloorSpec("2", NetNodeType.BLACK_ICE, "Wisp (Black ICE)", 15),
-                PremadeNetFloorSpec("3", NetNodeType.CONTROL_NODE, "Câmeras & Portas", 8),
-                PremadeNetFloorSpec("4", NetNodeType.CONTROL_NODE, "Elevador Sleep Gas", 8),
-                PremadeNetFloorSpec("5", NetNodeType.FILE, "Prontuários Médicos", 8),
-                PremadeNetFloorSpec("6", NetNodeType.FILE, "Estoque Cirúrgico", 10)
+                PremadeNetFloorSpec("2", NetNodeType.CONTROL_NODE, "Câmeras de Observação", 6),
+                PremadeNetFloorSpec("3", NetNodeType.FILE, "Agenda de Consultas", 6),
+                PremadeNetFloorSpec("4", NetNodeType.PASSWORD, "Ala Cirúrgica", 6),
+                PremadeNetFloorSpec("5", NetNodeType.BLACK_ICE, "Wisp (Black ICE)", 15),
+                PremadeNetFloorSpec("6", NetNodeType.CONTROL_NODE, "Elevador Sleep Gas (+Imp)", 8)
             )
         ),
         PremadeNetArchSpec(
             namePt = "Small Corp Facility",
             sourcePt = "Single Shot Pack (Vol 1)",
             totalCostEb = 88550,
-            summaryPt = "10 andares (Ramos A/B) • Imp + Efreet + Raven/Hellhound/Kraken.",
+            summaryPt = "10 andares (Ramos A/B) • Imp + Efreet + Raven/Hellhound/Kraken + Drones.",
             floors = listOf(
                 PremadeNetFloorSpec("1", NetNodeType.PASSWORD, "Firewall Lobby", 8),
-                PremadeNetFloorSpec("2", NetNodeType.BLACK_ICE, "Raven (Black ICE)", 15),
-                PremadeNetFloorSpec("3A", NetNodeType.CONTROL_NODE, "Limpeza & Câmeras", 8),
-                PremadeNetFloorSpec("4A", NetNodeType.BLACK_ICE, "Hellhound (Black ICE)", 20),
-                PremadeNetFloorSpec("3B", NetNodeType.PASSWORD, "Trava Cofre Dados", 10),
-                PremadeNetFloorSpec("4B", NetNodeType.BLACK_ICE, "Kraken (Black ICE)", 30),
-                PremadeNetFloorSpec("5", NetNodeType.DEMON, "Demônio Efreet", 25),
-                PremadeNetFloorSpec("6", NetNodeType.CONTROL_NODE, "Large Air Drone", 10),
-                PremadeNetFloorSpec("7", NetNodeType.FILE, "Arquivos Corporativos", 10),
-                PremadeNetFloorSpec("8", NetNodeType.FILE, "Contas & Projetos", 12)
+                PremadeNetFloorSpec("2", NetNodeType.FILE, "Agenda de Reuniões", 8),
+                PremadeNetFloorSpec("3", NetNodeType.BLACK_ICE, "Raven (Black ICE)", 15),
+                PremadeNetFloorSpec("1A", NetNodeType.PASSWORD, "Ramo A: Senha Manutenção", 8),
+                PremadeNetFloorSpec("2A", NetNodeType.BLACK_ICE, "Hellhound (Black ICE)", 20),
+                PremadeNetFloorSpec("3A", NetNodeType.CONTROL_NODE, "Drones de Limpeza (+Imp)", 6),
+                PremadeNetFloorSpec("1B", NetNodeType.PASSWORD, "Ramo B: Trava Executiva", 10),
+                PremadeNetFloorSpec("2B", NetNodeType.BLACK_ICE, "Kraken (Black ICE)", 30),
+                PremadeNetFloorSpec("3B", NetNodeType.CONTROL_NODE, "Câmeras Internas (+Efreet)", 10),
+                PremadeNetFloorSpec("4B", NetNodeType.CONTROL_NODE, "Large Air Drone", 10)
             )
         ),
         PremadeNetArchSpec(
             namePt = "Vault (Cofre Máximo)",
             sourcePt = "Single Shot Pack (Vol 1)",
             totalCostEb = 100700,
-            summaryPt = "9 andares • Balron + Hellhound×2 / Killer / Scorpion + Blood Swarm.",
+            summaryPt = "9 andares • Demônio Balron + Hellhound×2 + Killer + Scorpion + Blood Swarm.",
             floors = listOf(
                 PremadeNetFloorSpec("1", NetNodeType.PASSWORD, "Portão Blindado", 10),
-                PremadeNetFloorSpec("2", NetNodeType.BLACK_ICE, "Hellhound (Black ICE)", 20),
-                PremadeNetFloorSpec("3", NetNodeType.BLACK_ICE, "Killer (Black ICE)", 20),
-                PremadeNetFloorSpec("4", NetNodeType.CONTROL_NODE, "Automated Blood Swarm", 10),
-                PremadeNetFloorSpec("5", NetNodeType.BLACK_ICE, "Scorpion (Black ICE)", 15),
-                PremadeNetFloorSpec("6", NetNodeType.BLACK_ICE, "Hellhound #2", 20),
-                PremadeNetFloorSpec("7", NetNodeType.DEMON, "Demônio Balron", 30),
-                PremadeNetFloorSpec("8", NetNodeType.CONTROL_NODE, "Porta do Cofre", 12),
-                PremadeNetFloorSpec("9", NetNodeType.FILE, "Chave Cripto / Cofre", 12)
+                PremadeNetFloorSpec("2", NetNodeType.FILE, "Manifesto do Cofre", 6),
+                PremadeNetFloorSpec("3", NetNodeType.CONTROL_NODE, "Câmeras de Observação", 8),
+                PremadeNetFloorSpec("4", NetNodeType.BLACK_ICE, "Hellhound + Killer (Black ICE)", 20),
+                PremadeNetFloorSpec("5", NetNodeType.CONTROL_NODE, "Porta do Cofre (+Balron)", 10),
+                PremadeNetFloorSpec("6", NetNodeType.CONTROL_NODE, "Automated Blood Swarm", 10),
+                PremadeNetFloorSpec("7", NetNodeType.BLACK_ICE, "Hellhound + Scorpion (Black ICE)", 20),
+                PremadeNetFloorSpec("8", NetNodeType.FILE, "Dados Sigilosos", 10),
+                PremadeNetFloorSpec("9", NetNodeType.FILE, "Arquivos Ultra-Secretos", 12)
             )
         ),
         PremadeNetArchSpec(
@@ -493,6 +493,34 @@ object OfficialDlcNpcsAndNets {
                 PremadeNetFloorSpec("5", NetNodeType.BLACK_ICE, "Hellhound #2", 20),
                 PremadeNetFloorSpec("6", NetNodeType.CONTROL_NODE, "Elevador & Portas", 10),
                 PremadeNetFloorSpec("7", NetNodeType.FILE, "Cofre Pessoal", 10)
+            )
+        )
+    )
+
+    val dgdNetArchitectures: List<PremadeNetArchSpec> = listOf(
+        PremadeNetArchSpec(
+            namePt = "Bodega da Sra. Suzuki (The Incident)",
+            sourcePt = "Danger Gal Dossier (p. 164)",
+            totalCostEb = 4800,
+            summaryPt = "5 andares • Demons: Nenhum • Old Japantown (H4): Câmera, Persianas & Agenda.",
+            floors = listOf(
+                PremadeNetFloorSpec("1", NetNodeType.PASSWORD, "Password da Bodega", 8),
+                PremadeNetFloorSpec("2", NetNodeType.BLACK_ICE, "Hellhound (Black ICE)", 20),
+                PremadeNetFloorSpec("3", NetNodeType.CONTROL_NODE, "Câmera de Observação", 6),
+                PremadeNetFloorSpec("4", NetNodeType.CONTROL_NODE, "Persianas de Segurança", 6),
+                PremadeNetFloorSpec("5", NetNodeType.FILE, "Agenda da Sra. Suzuki", 6)
+            )
+        ),
+        PremadeNetArchSpec(
+            namePt = "NET Portátil do CrAB Lord (The Incident)",
+            sourcePt = "Danger Gal Dossier (p. 42)",
+            totalCostEb = 18500,
+            summaryPt = "4 andares • Demon: Rock Lobster (Balron • REZ 30 • INT 7 • 4 ações • Combate 14).",
+            floors = listOf(
+                PremadeNetFloorSpec("1", NetNodeType.BLACK_ICE, "Giant (Black ICE)", 25),
+                PremadeNetFloorSpec("2", NetNodeType.PASSWORD, "Password do Chassi Móvel", 10),
+                PremadeNetFloorSpec("3", NetNodeType.CONTROL_NODE, "CrAB Drone #1 (Balron Rock Lobster)", 10),
+                PremadeNetFloorSpec("4", NetNodeType.CONTROL_NODE, "CrAB Drone #2 (Balron Rock Lobster)", 10)
             )
         )
     )

@@ -43,6 +43,7 @@ data class CharacterEntity(
     val bodyArmorSp: Int = 11,
     val reputation: Int = 0,
     val improvementPoints: Int = 0,
+    val pendingTherapyDiceDelta: Int = 0,
     val isPrimary: Boolean = true,
     val notes: String = "",
     val updatedAt: Long = System.currentTimeMillis()

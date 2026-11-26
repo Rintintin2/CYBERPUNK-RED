@@ -1,10 +1,16 @@
 <resources>
-    <string name="app_name">Redline Solo</string>
-    <string name="nav_campaigns">Campanha</string>
-    <string name="nav_character">Edgerunner</string>
-    <string name="nav_session">Sessão</string>
+    <string name="app_name">CYBERPUNK RED</string>
+    <string name="nav_home">Início</string>
+    <string name="nav_campaigns">Campanhas</string>
+    <string name="nav_character">Personagem</string>
+    <string name="nav_play">Jogar</string>
     <string name="nav_systems">Sistemas</string>
-    <string name="nav_rules">Regras PDF</string>
+    <string name="nav_compendium">Compêndio</string>
+    <string name="nav_journal">Diário</string>
+    <string name="nav_ai">IA</string>
+    <string name="nav_settings">Configurações</string>
+    <string name="nav_atlas">Atlas NC</string>
+    <string name="cd_open_drawer">Abrir menu lateral</string>
     <string name="cd_cyber_banner">Panorâmica noturna da metrópole cyberpunk</string>
     <string name="cd_edgerunner_avatar">Retrato estilizado de Edgerunner</string>
     <string name="cd_add_action">Criar novo registro</string>

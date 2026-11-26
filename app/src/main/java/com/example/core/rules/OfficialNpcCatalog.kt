@@ -274,4 +274,18 @@ object OfficialNpcCatalog {
 
     fun findByEnglishName(nameEn: String): OfficialNpcSpec? =
         allIncludingDlcNpcs.firstOrNull { it.nameEn.equals(nameEn, ignoreCase = true) || it.id.equals(nameEn, ignoreCase = true) }
+
+    val allExtendedNpcs: List<OfficialNpcSpec>
+        get() = allIncludingDlcNpcs +
+            OfficialStreetratPregensCatalog.allPregens.map { it.toNpcSpec() } +
+            OfficialGangsAndCitizensCatalog.gangGuideEntries.map { it.statCard } +
+            OfficialGangsAndCitizensCatalog.everydayCitizens.map { it.statCard } +
+            OfficialDangerGalNpcs.allDgdNpcs.map { it.npc }
+
+    fun findExtendedByNameOrId(query: String): OfficialNpcSpec? =
+        allExtendedNpcs.firstOrNull {
+            it.id.equals(query, ignoreCase = true) ||
+                it.nameEn.equals(query, ignoreCase = true) ||
+                it.namePt.equals(query, ignoreCase = true)
+        }
 }

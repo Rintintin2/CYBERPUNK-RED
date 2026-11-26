@@ -48,6 +48,9 @@ interface CharacterDao {
     @Query("SELECT * FROM cyberware WHERE characterId = :characterId ORDER BY slotArea ASC, name ASC")
     fun observeCyberware(characterId: Long): Flow<List<CyberwareEntity>>
 
+    @Query("SELECT * FROM cyberware WHERE characterId = :characterId ORDER BY slotArea ASC, name ASC")
+    suspend fun getCyberwareForCharacter(characterId: Long): List<CyberwareEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCyberware(cyberware: CyberwareEntity): Long
 

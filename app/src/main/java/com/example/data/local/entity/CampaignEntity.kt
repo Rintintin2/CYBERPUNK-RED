@@ -13,6 +13,9 @@ data class CampaignEntity(
     val lifestyleLabel: String = "Kibble",
     val rentDueInDays: Int = 30,
     val eurodollars: Int = 2550,
+    val currentDistrictCode: String = "E",
+    val flashOfLuckMissionUses: Int = 0,
+    val flashOfLuckBeatUsed: Boolean = false,
     val isActive: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis()
 )

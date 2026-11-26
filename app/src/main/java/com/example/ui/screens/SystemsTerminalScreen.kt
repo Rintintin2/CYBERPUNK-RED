@@ -53,9 +53,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.core.rules.AgentAccessMode
+import com.example.core.rules.AgentQualityTier
 import com.example.core.rules.NetArchDifficulty
 import com.example.core.rules.NightMarketOffer
+import com.example.core.rules.OfficialDangerGalGearAndLore
 import com.example.core.rules.OfficialDlcNpcsAndNets
+import com.example.core.rules.OfficialGangsAndCitizensCatalog
 import com.example.core.rules.OfficialGearCatalog
 import com.example.core.rules.OfficialNetArchitectures
 import com.example.core.rules.PremadeNetArchSpec
@@ -78,6 +82,7 @@ import com.example.ui.components.TelemetryGaugeBar
 import com.example.ui.theme.CyberAmber
 import com.example.ui.theme.CyberCyan
 import com.example.ui.theme.CyberEmerald
+import com.example.ui.theme.CyberSurfaceElevated
 import com.example.ui.theme.RedlineCrimson
 import com.example.ui.viewmodel.MainUiState
 
@@ -104,6 +109,14 @@ fun SystemsTerminalScreen(
     onPayLifestyleOrHousing: (String, Int, String?, Boolean) -> Unit = { _, _, _, _ -> },
     onGenerateNightMarket: () -> Unit = {},
     onBuyNightMarketOffer: (NightMarketOffer) -> Unit = {},
+    onRunQuietlyJackIn: (Int) -> Unit = {},
+    onRunStealthVsBlackIce: (Int, Int) -> Unit = { _, _ -> },
+    onRunStealthVsWatcher: (Int, Int, Int) -> Unit = { _, _, _ -> },
+    onRunAgentHack: (AgentAccessMode, AgentQualityTier, Boolean, Boolean) -> Unit = { _, _, _, _ -> },
+    onRunHusTool: () -> Unit = {},
+    onRunBrainwasher: () -> Unit = {},
+    onDeployTheIncident: () -> Unit = {},
+    onImportDgdFaction: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val activeCampaign = uiState.activeCampaign
@@ -152,6 +165,7 @@ fun SystemsTerminalScreen(
                 onBuyNightMarketOffer = onBuyNightMarketOffer
             )
             1 -> NetrunningTab(
+                uiState = uiState,
                 nodes = uiState.netNodes,
                 onAddNode = onAddNetNode,
                 onGenerateNetArchitecture = onGenerateNetArchitecture,
@@ -159,18 +173,26 @@ fun SystemsTerminalScreen(
                 onRunInterfaceCheck = onRunInterfaceCheck,
                 onDamageIce = onDamageIce,
                 onToggleCleared = onToggleNetNodeCleared,
-                onDeleteNode = onDeleteNetNode
+                onDeleteNode = onDeleteNetNode,
+                onRunQuietlyJackIn = onRunQuietlyJackIn,
+                onRunStealthVsBlackIce = onRunStealthVsBlackIce,
+                onRunStealthVsWatcher = onRunStealthVsWatcher,
+                onRunAgentHack = onRunAgentHack,
+                onRunHusTool = onRunHusTool,
+                onRunBrainwasher = onRunBrainwasher
             )
             2 -> NpcsAndFactionsTab(
                 entries = uiState.npcsAndFactions,
                 onAdd = onAddNpcFaction,
-                onDelete = onDeleteNpcFaction
+                onDelete = onDeleteNpcFaction,
+                onImportDgdFaction = onImportDgdFaction
             )
             else -> MissionsTab(
                 missions = uiState.missions,
                 onAddMission = onAddMission,
                 onSetStatus = onSetMissionStatus,
-                onDeleteMission = onDeleteMission
+                onDeleteMission = onDeleteMission,
+                onDeployTheIncident = onDeployTheIncident
             )
         }
     }
@@ -349,6 +371,7 @@ private fun InventoryAndEconomyTab(
 
 @Composable
 private fun NetrunningTab(
+    uiState: MainUiState,
     nodes: List<NetNodeEntity>,
     onAddNode: (String, Int, NetNodeType, String, Int) -> Unit,
     onGenerateNetArchitecture: (String, NetArchDifficulty) -> Unit,
@@ -356,10 +379,20 @@ private fun NetrunningTab(
     onRunInterfaceCheck: (NetNodeEntity) -> Unit,
     onDamageIce: (NetNodeEntity, Int) -> Unit,
     onToggleCleared: (NetNodeEntity) -> Unit,
-    onDeleteNode: (Long) -> Unit
+    onDeleteNode: (Long) -> Unit,
+    onRunQuietlyJackIn: (Int) -> Unit,
+    onRunStealthVsBlackIce: (Int, Int) -> Unit,
+    onRunStealthVsWatcher: (Int, Int, Int) -> Unit,
+    onRunAgentHack: (AgentAccessMode, AgentQualityTier, Boolean, Boolean) -> Unit,
+    onRunHusTool: () -> Unit,
+    onRunBrainwasher: () -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
     var showGenerateDialog by remember { mutableStateOf(false) }
+    var agentMode by remember { mutableStateOf(AgentAccessMode.REMOTE_BREACHER) }
+    var agentQuality by remember { mutableStateOf(AgentQualityTier.STANDARD) }
+    var hasSocialBonus by remember { mutableStateOf(false) }
+    var useCrunchWhistle by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -369,7 +402,7 @@ private fun NetrunningTab(
         item {
             SectionHeader(
                 title = "Arquitetura NET, ICE & REZ",
-                subtitle = "Testes de Interface + 1d10 e dano em REZ",
+                subtitle = "Interface + 1d10, Stealth (Going Quiet) & Agent Hacking",
                 accentColor = CyberCyan,
                 trailing = {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -404,6 +437,148 @@ private fun NetrunningTab(
                     }
                 }
             )
+        }
+
+        item {
+            CyberPanel(accentColor = CyberEmerald) {
+                Text(
+                    text = "STEALTH NETRUNNING (GOING QUIET)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = CyberEmerald
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { onRunQuietlyJackIn(4) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("quietly_jack_in_button"),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                    ) {
+                        Text("Quiet Jack In", maxLines = 1)
+                    }
+                    OutlinedButton(
+                        onClick = { onRunStealthVsBlackIce(2, 6) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("stealth_vs_ice_button"),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                    ) {
+                        Text("Evadir ICE", maxLines = 1)
+                    }
+                    OutlinedButton(
+                        onClick = { onRunStealthVsWatcher(2, 4, 4) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("stealth_vs_watcher_button"),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                    ) {
+                        Text("vs Watcher", maxLines = 1)
+                    }
+                }
+                uiState.lastStealthNetResult?.let { stealth ->
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "${stealth.actionLabelPt}: ${if (stealth.runnerStealthMaintained) "FURTIVO" else "DETECTADO"} — ${stealth.breakdownPt}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (stealth.runnerStealthMaintained) CyberEmerald else RedlineCrimson
+                    )
+                }
+            }
+        }
+
+        item {
+            CyberPanel(accentColor = CyberAmber) {
+                Text(
+                    text = "HACKING DE AGENTS & APPS (ALL ABOUT AGENTS)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = CyberAmber
+                )
+                Spacer(Modifier.height(6.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(AgentAccessMode.entries) { m ->
+                        FilterChip(
+                            selected = agentMode == m,
+                            onClick = { agentMode = m },
+                            label = { Text(m.labelPt.substringBefore(" (")) }
+                        )
+                    }
+                    items(AgentQualityTier.entries) { q ->
+                        FilterChip(
+                            selected = agentQuality == q,
+                            onClick = { agentQuality = q },
+                            label = { Text("${q.name} DV${q.dvFor(agentMode)}") }
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilterChip(
+                        selected = hasSocialBonus,
+                        onClick = { hasSocialBonus = !hasSocialBonus },
+                        label = { Text("Eng. Social +2") }
+                    )
+                    FilterChip(
+                        selected = useCrunchWhistle,
+                        onClick = { useCrunchWhistle = !useCrunchWhistle },
+                        label = { Text("Crunch Whistle") }
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Button(
+                        onClick = { onRunAgentHack(agentMode, agentQuality, hasSocialBonus, useCrunchWhistle) },
+                        colors = ButtonDefaults.buttonColors(containerColor = CyberAmber),
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .testTag("hack_agent_button"),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("Invadir Agent", color = MaterialTheme.colorScheme.onTertiary, maxLines = 1)
+                    }
+                    OutlinedButton(
+                        onClick = onRunHusTool,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("hustool_app_button"),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                    ) {
+                        Text("HusTool", maxLines = 1)
+                    }
+                    OutlinedButton(
+                        onClick = onRunBrainwasher,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("brainwasher_app_button"),
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+                    ) {
+                        Text("Brainwasher", maxLines = 1)
+                    }
+                }
+                uiState.lastAgentHackResult?.let { h ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "${if (h.succeeded) "INVADIDO" else "FALHA/ALERTA"}: ${h.breakdownPt}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (h.succeeded) CyberEmerald else RedlineCrimson
+                    )
+                }
+                uiState.lastHusToolResult?.let { ht ->
+                    Text(ht.summaryPt, style = MaterialTheme.typography.bodySmall, color = CyberCyan)
+                }
+                uiState.lastBrainwasherResult?.let { bw ->
+                    Text(bw.summaryPt, style = MaterialTheme.typography.bodySmall, color = CyberAmber)
+                }
+            }
         }
 
         if (nodes.isEmpty()) {
@@ -527,9 +702,11 @@ private fun NetrunningTab(
 private fun NpcsAndFactionsTab(
     entries: List<NpcFactionEntity>,
     onAdd: (String, Boolean, String, String, String) -> Unit,
-    onDelete: (Long) -> Unit
+    onDelete: (Long) -> Unit,
+    onImportDgdFaction: (String) -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
+    var showDgdImportDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -539,13 +716,22 @@ private fun NpcsAndFactionsTab(
         item {
             SectionHeader(
                 title = "NPCs, Contatos & Facções",
-                subtitle = "Rede de contatos e reputação em Night City",
+                subtitle = "Rede de contatos, Gangues & Danger Gal Dossier",
                 accentColor = CyberCyan,
                 trailing = {
-                    TextButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Adicionar")
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedButton(
+                            onClick = { showDgdImportDialog = true },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.testTag("import_dgd_faction_button")
+                        ) {
+                            Text("DGD (16)")
+                        }
+                        TextButton(onClick = { showAddDialog = true }) {
+                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Novo")
+                        }
                     }
                 }
             )
@@ -555,7 +741,7 @@ private fun NpcsAndFactionsTab(
             item {
                 CyberPanel {
                     Text(
-                        text = "Nenhum contato ou facção registrado ainda.",
+                        text = "Nenhum contato ou facção registrado ainda. Use 'DGD (16)' para importar facções e NPCs do Danger Gal Dossier.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -607,6 +793,20 @@ private fun NpcsAndFactionsTab(
             }
         )
     }
+
+    if (showDgdImportDialog) {
+        ImportDgdFactionDialog(
+            onDismiss = { showDgdImportDialog = false },
+            onImportFaction = { factionId ->
+                onImportDgdFaction(factionId)
+                showDgdImportDialog = false
+            },
+            onImportGangEntry = { name, gangName, note ->
+                onAdd(name, false, gangName, "Hostil/Gangue", note)
+                showDgdImportDialog = false
+            }
+        )
+    }
 }
 
 @Composable
@@ -614,9 +814,11 @@ private fun MissionsTab(
     missions: List<MissionEntity>,
     onAddMission: (String, String, Int, String) -> Unit,
     onSetStatus: (MissionEntity, MissionStatus) -> Unit,
-    onDeleteMission: (Long) -> Unit
+    onDeleteMission: (Long) -> Unit,
+    onDeployTheIncident: () -> Unit
 ) {
     var showAddDialog by remember { mutableStateOf(false) }
+    var checkedBeats by remember { mutableStateOf(setOf<Int>()) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -629,10 +831,19 @@ private fun MissionsTab(
                 subtitle = "Concluir missão credita recompensa (eb) automaticamente",
                 accentColor = CyberEmerald,
                 trailing = {
-                    TextButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Novo Gig")
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        OutlinedButton(
+                            onClick = onDeployTheIncident,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.testTag("deploy_the_incident_button")
+                        ) {
+                            Text("The Incident")
+                        }
+                        TextButton(onClick = { showAddDialog = true }) {
+                            Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Gig")
+                        }
                     }
                 }
             )
@@ -642,7 +853,7 @@ private fun MissionsTab(
             item {
                 CyberPanel {
                     Text(
-                        text = "Nenhum contrato registrado. Cadastre missões com Fixer, recompensa e objetivos.",
+                        text = "Nenhum contrato registrado. Cadastre missões ou implante a aventura oficial 'The Incident' (Danger Gal Dossier).",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -674,6 +885,39 @@ private fun MissionsTab(
                     if (mission.objectivesSummary.isNotBlank()) {
                         Spacer(Modifier.height(6.dp))
                         Text(mission.objectivesSummary, style = MaterialTheme.typography.bodySmall)
+                    }
+                    if (mission.title.contains("The Incident", ignoreCase = true)) {
+                        Spacer(Modifier.height(8.dp))
+                        CyberPanel(containerColor = CyberSurfaceElevated) {
+                            Text(
+                                text = "ROTEIRO OFICIAL — 10 BEATS (DGD pp. 160–170)",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = CyberCyan
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            OfficialDangerGalGearAndLore.theIncidentBeats.forEach { beat ->
+                                val done = checkedBeats.contains(beat.beatNumber)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Checkbox(
+                                        checked = done,
+                                        onCheckedChange = { isChecked ->
+                                            checkedBeats = if (isChecked) checkedBeats + beat.beatNumber else checkedBeats - beat.beatNumber
+                                        }
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Beat ${beat.beatNumber}: ${beat.titlePt} [${beat.beatTypePt}]",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = if (done) CyberEmerald else CyberAmber
+                                        )
+                                        Text(beat.summaryPt, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                            }
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(
@@ -1002,7 +1246,10 @@ private fun GenerateNetArchDialog(
 ) {
     var archName by remember { mutableStateOf("Servidor Corporativo") }
     var difficulty by remember { mutableStateOf(NetArchDifficulty.STANDARD) }
-    var selectedPremade by remember { mutableStateOf(OfficialDlcNpcsAndNets.premadeNetArchitectures.first()) }
+    val allPremades = remember {
+        OfficialDlcNpcsAndNets.premadeNetArchitectures + OfficialDlcNpcsAndNets.dgdNetArchitectures
+    }
+    var selectedPremade by remember { mutableStateOf(allPremades.first()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1033,12 +1280,12 @@ private fun GenerateNetArchDialog(
                     }
                 }
                 Text(
-                    text = "ARQUITETURAS PRONTAS (INTERFACE RED VOL. 1–2)",
+                    text = "ARQUITETURAS PRONTAS (INTERFACE RED + DGD)",
                     style = MaterialTheme.typography.labelLarge,
                     color = CyberCyan
                 )
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    items(OfficialDlcNpcsAndNets.premadeNetArchitectures, key = { it.namePt }) { p ->
+                    items(allPremades, key = { it.namePt }) { p ->
                         FilterChip(
                             selected = selectedPremade.namePt == p.namePt,
                             onClick = { selectedPremade = p },
@@ -1180,5 +1427,87 @@ private fun AddMissionDialog(
             ) { Text("Criar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+@Composable
+private fun ImportDgdFactionDialog(
+    onDismiss: () -> Unit,
+    onImportFaction: (String) -> Unit,
+    onImportGangEntry: (String, String, String) -> Unit
+) {
+    var selectedFaction by remember { mutableStateOf(OfficialDangerGalGearAndLore.dgdFactions.first()) }
+    var selectedGang by remember { mutableStateOf(OfficialGangsAndCitizensCatalog.gangGuideEntries.first()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Importar Facção DGD / Gangue") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "DANGER GAL DOSSIER (16 FACÇÕES + 118 NPCs)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = CyberCyan
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(OfficialDangerGalGearAndLore.dgdFactions, key = { it.id }) { f ->
+                        FilterChip(
+                            selected = selectedFaction.id == f.id,
+                            onClick = { selectedFaction = f },
+                            label = { Text(f.namePt) }
+                        )
+                    }
+                }
+                Text(
+                    text = "${selectedFaction.threatTierPt} • Território: ${selectedFaction.turfPt}\n${selectedFaction.overviewPt}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CyberAmber
+                )
+                Button(
+                    onClick = { onImportFaction(selectedFaction.id) },
+                    colors = ButtonDefaults.buttonColors(containerColor = CyberCyan),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("confirm_import_dgd_faction_button")
+                ) {
+                    Text("Importar ${selectedFaction.namePt} + NPCs", color = MaterialTheme.colorScheme.onSecondary)
+                }
+
+                Text(
+                    text = "GANGUES DE NIGHT CITY (44 PERFIS)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = RedlineCrimson
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(OfficialGangsAndCitizensCatalog.gangGuideEntries, key = { it.id }) { g ->
+                        FilterChip(
+                            selected = selectedGang.id == g.id,
+                            onClick = { selectedGang = g },
+                            label = { Text(g.statCard.namePt) }
+                        )
+                    }
+                }
+                Text(
+                    text = "${selectedGang.gangNamePt} • PV ${selectedGang.statCard.hp} • ${selectedGang.statCard.armorLabelPt}",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                OutlinedButton(
+                    onClick = {
+                        onImportGangEntry(
+                            selectedGang.statCard.namePt,
+                            selectedGang.gangNamePt,
+                            "${selectedGang.statCard.roleSummaryPt} (Distritos: ${selectedGang.districtsPt} • PV ${selectedGang.statCard.hp})"
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Adicionar Contato/Rival da Gangue")
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } }
     )
 }

@@ -432,4 +432,109 @@ class SessionRepository(
         }
         return rolledInits
     }
+
+    suspend fun setCurrentDistrict(campaign: CampaignEntity, districtCode: String) {
+        val district = com.example.core.rules.OfficialNightCityAtlasCatalog.findDistrictByCode(districtCode) ?: return
+        val updated = campaign.copy(
+            currentDistrictCode = district.code,
+            updatedAt = System.currentTimeMillis()
+        )
+        campaignDao.updateCampaign(updated)
+        addJournalEntry(
+            campaign = updated,
+            entryType = JournalEntryType.SYSTEM_EVENT,
+            speakerLabel = "Atlas de Night City",
+            bodyText = "Deslocamento para ${district.code} — ${district.namePt} (${district.zone.labelPt}). Segurança: ${district.securityProvider}."
+        )
+    }
+
+    suspend fun updateCampaignFlashOfLuck(
+        campaign: CampaignEntity,
+        beatUsed: Boolean,
+        missionUses: Int
+    ): CampaignEntity {
+        val updated = campaign.copy(
+            flashOfLuckBeatUsed = beatUsed,
+            flashOfLuckMissionUses = missionUses.coerceIn(0, 3),
+            updatedAt = System.currentTimeMillis()
+        )
+        campaignDao.updateCampaign(updated)
+        return updated
+    }
+
+    suspend fun deployTheIncidentAdventure(campaign: CampaignEntity) {
+        val summary = com.example.core.rules.OfficialDangerGalGearAndLore.theIncidentSummary
+        addMission(
+            campaignId = campaign.id,
+            title = "The Incident (Danger Gal Dossier)",
+            fixerName = "Mouse (Puma Squad)",
+            rewardEb = 1000,
+            objectivesSummary = summary
+        )
+        val incidentNpcs = listOf(
+            Triple("Mouse (Puma Squad)", "Danger Gal", "Aliado/Contratante • Forlorn Hope (I3). Paga 500eb adiantado + 500eb final + Card 1.000eb."),
+            Triple("Benny & Sra. Suzuki", "Old Japantown (H4)", "Neutro • Donos da Bodega da Sra. Suzuki (Social DV13 ou Bodega NET)."),
+            Triple("Pa Saddlefoot & Sweetbriar", "The Shroomers", "Neutro • Guias dos túneis sob Old Japantown / Pequena Europa."),
+            Triple("Darius (Arasaka)", "Arasaka Black Ops", "Hostil • Netrunner 4 com Cortex Bomb oculta nos túneis."),
+            Triple("Nymph (Arasaka)", "Arasaka Black Ops", "Hostil • Assassina Solo 4 protegendo o cartão codificado Arasaka.")
+        )
+        incidentNpcs.forEach { (name, aff, notes) ->
+            addNpcOrFaction(
+                campaignId = campaign.id,
+                name = name,
+                isFaction = false,
+                affiliation = aff,
+                attitude = if (notes.startsWith("Hostil")) "Hostil" else if (notes.startsWith("Aliado")) "Aliado" else "Neutro",
+                notes = notes
+            )
+        }
+        val bodegaNet = com.example.core.rules.OfficialDlcNpcsAndNets.dgdNetArchitectures.first()
+        bodegaNet.floors.forEachIndexed { idx, floor ->
+            addNetNode(
+                campaignId = campaign.id,
+                architectureName = bodegaNet.namePt,
+                floorNumber = idx + 1,
+                nodeType = floor.nodeType,
+                title = "[${floor.floorLabel}] ${floor.title}",
+                dvOrRez = floor.dvOrRez
+            )
+        }
+        addJournalEntry(
+            campaign = campaign,
+            entryType = JournalEntryType.SYSTEM_EVENT,
+            speakerLabel = "Gig: The Incident",
+            bodyText = "Aventura oficial 'The Incident' (10 Beats) implantada com NPCs-chave e Bodega NET (5 andares)."
+        )
+    }
+
+    suspend fun importDgdFaction(campaign: CampaignEntity, factionId: String): Int {
+        val faction = com.example.core.rules.OfficialDangerGalGearAndLore.dgdFactions.firstOrNull { it.id == factionId }
+            ?: return 0
+        addNpcOrFaction(
+            campaignId = campaign.id,
+            name = faction.namePt,
+            isFaction = true,
+            affiliation = faction.turfPt,
+            attitude = faction.attitudePt,
+            notes = "${faction.threatTierPt} — ${faction.overviewPt}"
+        )
+        val npcs = com.example.core.rules.OfficialDangerGalNpcs.byFaction(factionId)
+        npcs.forEach { entry ->
+            addNpcOrFaction(
+                campaignId = campaign.id,
+                name = "${entry.npc.namePt} (${entry.npc.tier.labelPt})",
+                isFaction = false,
+                affiliation = faction.namePt,
+                attitude = faction.attitudePt,
+                notes = "${entry.npc.armorLabelPt} • ${entry.npc.hp} PV • ${entry.npc.keySkillBasesPt}"
+            )
+        }
+        addJournalEntry(
+            campaign = campaign,
+            entryType = JournalEntryType.SYSTEM_EVENT,
+            speakerLabel = "Danger Gal Dossier",
+            bodyText = "Facção \"${faction.namePt}\" + ${npcs.size} NPCs importados para a campanha."
+        )
+        return npcs.size
+    }
 }

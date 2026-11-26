@@ -1,5 +1,8 @@
 package com.example
 
+import com.example.core.rules.AgentAccessMode
+import com.example.core.rules.AgentQualityTier
+import com.example.core.rules.AtlasZoneId
 import com.example.core.rules.CharacterCalculator
 import com.example.core.rules.CharacterStats
 import com.example.core.rules.CombatEngine
@@ -7,6 +10,7 @@ import com.example.core.rules.CriticalMarker
 import com.example.core.rules.DiceEngine
 import com.example.core.rules.EconomyEngine
 import com.example.core.rules.EncounterTimeOfDay
+import com.example.core.rules.FlashOfLuckTier
 import com.example.core.rules.NetArchDifficulty
 import com.example.core.rules.NetrunningEngine
 import com.example.core.rules.NpcThreatTier
@@ -14,18 +18,25 @@ import com.example.core.rules.OfficialBlackChromeCyberwareCatalog
 import com.example.core.rules.OfficialBlackChromeGearCatalog
 import com.example.core.rules.OfficialCombatTables
 import com.example.core.rules.OfficialCyberwareCatalog
+import com.example.core.rules.OfficialDangerGalGearAndLore
+import com.example.core.rules.OfficialDangerGalNpcs
 import com.example.core.rules.OfficialDlcCyberwareAndFbc
 import com.example.core.rules.OfficialDlcGearCatalog
 import com.example.core.rules.OfficialDlcNpcsAndNets
 import com.example.core.rules.OfficialDlcSoloSystems
 import com.example.core.rules.OfficialEconomyAndProgression
 import com.example.core.rules.OfficialEncountersAndLoreCatalog
+import com.example.core.rules.OfficialGangsAndCitizensCatalog
 import com.example.core.rules.OfficialGearCatalog
 import com.example.core.rules.OfficialHookBookData
 import com.example.core.rules.OfficialNetArchitectures
+import com.example.core.rules.OfficialNightCityAtlasCatalog
 import com.example.core.rules.OfficialNpcCatalog
+import com.example.core.rules.OfficialSinglePlayerPlusCatalog
 import com.example.core.rules.OfficialSkillCatalog
+import com.example.core.rules.OfficialStealthAndAgentsCatalog
 import com.example.core.rules.OfficialStreetGenerators
+import com.example.core.rules.OfficialStreetratPregensCatalog
 import com.example.core.rules.OfficialTalesAndHookBookCatalog
 import com.example.core.rules.OfficialWeaponsAndDefensesCatalog
 import com.example.core.rules.PriceCategory
@@ -460,5 +471,103 @@ class RedlineRulesEngineTest {
             diceEngine = DiceEngine(ScriptedDiceRoller(listOf(6)))
         )
         assertTrue(rcVendor.contains("Carl's Car Rentals"))
+    }
+
+    @Test
+    fun `night city atlas single player plus stealth agents pregens gangs and danger gal dossier work`() {
+        // 1. Night City Atlas: 4 zones, 24 districts A..X, 156 locations
+        assertEquals(4, AtlasZoneId.entries.size)
+        assertEquals(24, OfficialNightCityAtlasCatalog.districts.size)
+        assertEquals(156, OfficialNightCityAtlasCatalog.allLocationsCount)
+        val watson = OfficialNightCityAtlasCatalog.findDistrictByCode("E")
+        assertNotNull(watson)
+        assertTrue(OfficialNightCityAtlasCatalog.searchLocations("Forlorn Hope").isNotEmpty())
+
+        // 2. Single Player Mode+: 22 tables + deterministic oracle & NPC personality
+        assertEquals(22, OfficialSinglePlayerPlusCatalog.allTables.size)
+        val tableRoll = OfficialSinglePlayerPlusCatalog.rollTable(
+            tableId = "npc_motivation",
+            diceEngine = DiceEngine(ScriptedDiceRoller(listOf(1)))
+        )
+        assertEquals(1, tableRoll.rollValue)
+        val npcBundle = OfficialSinglePlayerPlusCatalog.rollNpcPersonalityBundle(
+            DiceEngine(ScriptedDiceRoller(listOf(2, 6, 9)))
+        )
+        assertEquals(2, npcBundle.motivationRoll)
+        assertEquals(6, npcBundle.competenceRoll)
+        assertEquals(9, npcBundle.aggressionRoll)
+        val oracle = OfficialSinglePlayerPlusCatalog.askSoloOracleYesNo(
+            questionPt = "Há guardas?",
+            oddsLabelPt = "50/50",
+            targetDv = 5,
+            diceEngine = DiceEngine(ScriptedDiceRoller(listOf(8)))
+        )
+        assertEquals(8, oracle.roll1d10)
+        assertTrue(oracle.answerPt.contains("SIM"))
+
+        // 3. Going Quiet & All About Agents (NetrunningEngine + Flash of Luck)
+        assertEquals(2, FlashOfLuckTier.SIMPLE.luckCost)
+        assertEquals(4, FlashOfLuckTier.UNLIKELY.luckCost)
+        assertEquals(8, FlashOfLuckTier.IMPROBABLE.luckCost)
+
+        val netEngine = NetrunningEngine(DiceEngine(ScriptedDiceRoller(listOf(8, 3, 7, 4, 6, 2))))
+        val quietJack = netEngine.quietlyJackIn(interfaceRank = 6, watcherInterfaceRank = 4)
+        assertTrue(quietJack.runnerStealthMaintained)
+        val evadeIce = netEngine.evadeBlackIceInStealth(interfaceRank = 6, cloakBonus = 2, blackIcePerception = 5)
+        assertTrue(evadeIce.runnerStealthMaintained)
+        val vsWatcher = netEngine.contestWatcherVsStealth(interfaceRank = 6, cloakBonus = 2, watcherInterface = 4, watcherPathfinder = 3)
+        assertTrue(vsWatcher.runnerStealthMaintained)
+
+        val agentHack = NetrunningEngine(DiceEngine(ScriptedDiceRoller(listOf(9)))).hackAgent(
+            elecSecBase = 14,
+            accessMode = AgentAccessMode.REMOTE_BREACHER,
+            qualityTier = AgentQualityTier.STANDARD,
+            hasSocialInfoBonus = true,
+            crunchWhistleInterfaceBonus = 4
+        )
+        assertTrue(agentHack.succeeded)
+        val husTool = NetrunningEngine(DiceEngine(ScriptedDiceRoller(listOf(6)))).rollHusTool()
+        assertEquals(10, husTool.earnedEb)
+        val brainwasher = NetrunningEngine(DiceEngine(ScriptedDiceRoller(listOf(1)))).rollBrainwasher()
+        assertEquals(1, brainwasher.roll1d10)
+
+        // 4. Single Shot Pack Pregens (10 pregens, each with 20 valid skills)
+        assertEquals(10, OfficialStreetratPregensCatalog.allPregens.size)
+        val officialSkillNamesPt = OfficialSkillCatalog.allSkills.map { it.namePt }.toSet()
+        OfficialStreetratPregensCatalog.allPregens.forEach { pregen ->
+            assertEquals(20, pregen.skills.size)
+            pregen.skills.keys.forEach { skillName ->
+                assertTrue("Skill missing in catalog: $skillName", officialSkillNamesPt.contains(skillName))
+            }
+            assertNotNull(pregen.toNpcSpec())
+        }
+
+        // 5. Night City Gang Guide (44) & Everyday People (20)
+        assertEquals(44, OfficialGangsAndCitizensCatalog.gangGuideEntries.size)
+        assertEquals(20, OfficialGangsAndCitizensCatalog.everydayCitizens.size)
+
+        // 6. Danger Gal Dossier (16 factions, 118 NPCs, 10 Incident beats, 2 NET archs)
+        assertEquals(16, OfficialDangerGalGearAndLore.dgdFactions.size)
+        assertEquals(118, OfficialDangerGalNpcs.allDgdNpcs.size)
+        assertEquals(10, OfficialDangerGalGearAndLore.theIncidentBeats.size)
+        assertEquals(3, OfficialDangerGalGearAndLore.dgdCustomVehicles.size)
+        assertEquals(2, OfficialDlcNpcsAndNets.dgdNetArchitectures.size)
+        assertEquals(5, OfficialDlcNpcsAndNets.dgdNetArchitectures[0].floors.size)
+        assertEquals(4, OfficialDlcNpcsAndNets.dgdNetArchitectures[1].floors.size)
+
+        // 7. Key uniqueness & existing invariant preservation
+        assertEquals(10, OfficialNpcCatalog.allNpcs.size)
+        assertEquals(38, OfficialNpcCatalog.allIncludingDlcNpcs.size)
+        assertEquals(9, OfficialDlcNpcsAndNets.premadeNetArchitectures.size)
+        assertEquals(45, OfficialGearCatalog.allVehicles.size)
+        assertEquals(
+            OfficialGearCatalog.quickPurchaseCatalog.size,
+            OfficialGearCatalog.quickPurchaseCatalog.map { it.nameEn }.distinct().size
+        )
+        assertEquals(
+            OfficialCyberwareCatalog.allCyberware.size,
+            OfficialCyberwareCatalog.allCyberware.map { "${it.category}_${it.nameEn}" }.distinct().size
+        )
+        assertTrue(OfficialStealthAndAgentsCatalog.allStealthAndAgentPurchaseGear.isNotEmpty())
     }
 }

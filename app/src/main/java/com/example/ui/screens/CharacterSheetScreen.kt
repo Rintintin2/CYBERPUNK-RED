@@ -65,6 +65,7 @@ import com.example.core.rules.OfficialEconomyAndProgression
 import com.example.core.rules.OfficialNetArchitectures
 import com.example.core.rules.OfficialSkillCatalog
 import com.example.core.rules.RedStat
+import com.example.core.rules.TherapyType
 import com.example.core.rules.WoundState
 import com.example.data.local.entity.CharacterSkillEntity
 import com.example.data.local.entity.CyberwareEntity
@@ -100,6 +101,7 @@ fun CharacterSheetScreen(
     onAwardIp: (Int) -> Unit = {},
     onUpgradeSkillWithIp: (CharacterSkillEntity) -> Unit = {},
     onUpgradeRoleRankWithIp: () -> Unit = {},
+    onRunTherapy: (TherapyType, useClinicService: Boolean, payWithEb: Boolean) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val character = uiState.primaryCharacter
@@ -124,6 +126,7 @@ fun CharacterSheetScreen(
     var showAddSkillDialog by remember { mutableStateOf(false) }
     var showAddCyberwareDialog by remember { mutableStateOf(false) }
     var showAwardIpDialog by remember { mutableStateOf(false) }
+    var showTherapyDialog by remember { mutableStateOf(false) }
 
     val woundColor = when (derived.woundState) {
         WoundState.UNINJURED -> CyberEmerald
@@ -170,14 +173,21 @@ fun CharacterSheetScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             CyberBadge(text = derived.woundState.labelPt, color = woundColor)
-                            if (derived.woundPenalty != 0) {
-                                CyberBadge(text = "Ferimento ${derived.woundPenalty}", color = RedlineCrimson)
+                            if (derived.effectiveWoundPenalty != 0) {
+                                CyberBadge(text = "Ferimento ${derived.effectiveWoundPenalty}", color = RedlineCrimson)
+                            } else if (derived.painEditorActive && derived.woundState == WoundState.SERIOUSLY_WOUNDED) {
+                                CyberBadge(text = "Editor de Dor Ativo", color = CyberCyan)
                             }
-                            val maxSp = maxOf(character.bodyArmorSp, character.headArmorSp)
-                            if (maxSp >= 15) {
-                                CyberBadge(text = "PA Pesada (-4 REF/DES/MOV)", color = CyberAmber)
-                            } else if (maxSp >= 12) {
-                                CyberBadge(text = "PA Média (-2 REF/DES/MOV)", color = CyberAmber)
+                            if (derived.armorPenalty != 0) {
+                                val tier = if (derived.armorPenalty <= -4) "Pesada" else "Média"
+                                CyberBadge(text = "PA $tier (${derived.armorPenalty} REF/DES/MOV)", color = CyberAmber)
+                            }
+                            if (derived.effectiveBody != character.body) {
+                                CyberBadge(text = "COR ${derived.effectiveBody} (Base ${character.body})", color = CyberCyan)
+                            }
+                            if (character.pendingTherapyDiceDelta != 0) {
+                                val sign = if (character.pendingTherapyDiceDelta > 0) "+" else ""
+                                CyberBadge(text = "Brainwasher ${sign}${character.pendingTherapyDiceDelta}d6 Terapia", color = CyberAmber)
                             }
                             CyberBadge(text = "${character.improvementPoints} I.P.", color = CyberEmerald)
                         }
@@ -326,11 +336,15 @@ fun CharacterSheetScreen(
             ) {
                 val stats = character.toCharacterStats()
                 RedStat.entries.forEach { stat ->
-                    val displayValue = stats.getStat(
-                        stat = stat,
-                        currentEmpathy = derived.currentEmpathy,
-                        currentLuck = character.luckCurrent
-                    )
+                    val displayValue = if (stat == RedStat.BODY) {
+                        derived.effectiveBody
+                    } else {
+                        stats.getStat(
+                            stat = stat,
+                            currentEmpathy = derived.currentEmpathy,
+                            currentLuck = character.luckCurrent
+                        )
+                    }
                     CyberPanel(
                         modifier = Modifier
                             .weight(1f)
@@ -349,7 +363,11 @@ fun CharacterSheetScreen(
                                     color = CyberCyan
                                 )
                                 Text(
-                                    text = stat.labelPt,
+                                    text = if (stat == RedStat.BODY && derived.effectiveBody != character.body) {
+                                        "${stat.labelPt} (Base ${character.body})"
+                                    } else {
+                                        stat.labelPt
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -464,21 +482,54 @@ fun CharacterSheetScreen(
         }
 
         item {
+            val slots = uiState.cyberwareSlotSummary
             SectionHeader(
                 title = "Cyberware & Perda de Humanidade",
-                subtitle = "Custo total ativo: ${character.humanityLoss} HL",
+                subtitle = "Custo total ativo: ${character.humanityLoss} HL • Teto máx: ${derived.maxHumanity}",
                 accentColor = CyberCyan,
                 trailing = {
-                    TextButton(
-                        onClick = { showAddCyberwareDialog = true },
-                        modifier = Modifier.testTag("add_cyberware_button")
-                    ) {
-                        Icon(Icons.Filled.Memory, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Instalar")
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(
+                            onClick = { showTherapyDialog = true },
+                            modifier = Modifier.testTag("open_therapy_button")
+                        ) {
+                            Text("Terapia", color = CyberEmerald)
+                        }
+                        TextButton(
+                            onClick = { showAddCyberwareDialog = true },
+                            modifier = Modifier.testTag("add_cyberware_button")
+                        ) {
+                            Icon(Icons.Filled.Memory, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Instalar")
+                        }
                     }
                 }
             )
+            Spacer(Modifier.height(6.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                CyberBadge(text = "Fashion ${slots.fashionwareUsed}/${slots.fashionwareMax}", color = CyberCyan)
+                CyberBadge(text = "Interno ${slots.internalUsed}/${slots.internalMax}", color = CyberCyan)
+                CyberBadge(text = "Externo ${slots.externalUsed}/${slots.externalMax}", color = CyberCyan)
+                if (slots.neuralMax > 0) CyberBadge(text = "Neural ${slots.neuralUsed}/${slots.neuralMax}", color = CyberAmber)
+                if (slots.cyberopticMax > 0) CyberBadge(text = "Óptico ${slots.cyberopticUsed}/${slots.cyberopticMax}", color = CyberAmber)
+                if (slots.cyberaudioMax > 0) CyberBadge(text = "Áudio ${slots.cyberaudioUsed}/${slots.cyberaudioMax}", color = CyberAmber)
+                if (slots.cyberarmMax > 0) CyberBadge(text = "Braço ${slots.cyberarmUsed}/${slots.cyberarmMax}", color = CyberAmber)
+                if (slots.cyberlegMax > 0) CyberBadge(text = "Perna ${slots.cyberlegUsed}/${slots.cyberlegMax}", color = CyberAmber)
+            }
+            uiState.lastTherapyOutcome?.let { therapy ->
+                Spacer(Modifier.height(6.dp))
+                CyberPanel(accentColor = CyberEmerald, containerColor = CyberSurfaceElevated) {
+                    Text(
+                        text = therapy.summaryPt,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CyberEmerald
+                    )
+                }
+            }
         }
 
         if (uiState.cyberware.isEmpty()) {
@@ -558,6 +609,20 @@ fun CharacterSheetScreen(
             currentIp = character.improvementPoints,
             onAwardIp = onAwardIp,
             onDismiss = { showAwardIpDialog = false }
+        )
+    }
+
+    if (showTherapyDialog) {
+        TherapyDialog(
+            currentHumanity = derived.currentHumanity,
+            maxHumanity = derived.maxHumanity,
+            pendingBrainwasherDelta = character.pendingTherapyDiceDelta,
+            availableEurodollars = uiState.activeCampaign?.eurodollars ?: 0,
+            onDismiss = { showTherapyDialog = false },
+            onConfirm = { type, useClinic, payEb ->
+                onRunTherapy(type, useClinic, payEb)
+                showTherapyDialog = false
+            }
         )
     }
 }
@@ -796,3 +861,94 @@ private fun AddCyberwareDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
 }
+
+@Composable
+private fun TherapyDialog(
+    currentHumanity: Int,
+    maxHumanity: Int,
+    pendingBrainwasherDelta: Int,
+    availableEurodollars: Int,
+    onDismiss: () -> Unit,
+    onConfirm: (TherapyType, useClinicService: Boolean, payWithEb: Boolean) -> Unit
+) {
+    var selectedType by remember { mutableStateOf(TherapyType.STANDARD_HUMANITY) }
+    var useClinicService by remember { mutableStateOf(true) }
+    var payWithEb by remember { mutableStateOf(true) }
+
+    val cost = if (useClinicService) selectedType.clinicCostEb else selectedType.selfMaterialsEb
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Terapia Médica (7 dias)") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "Humanidade Atual: $currentHumanity / $maxHumanity (teto reduzido por implantes ativos).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = CyberCyan
+                )
+                if (pendingBrainwasherDelta != 0) {
+                    val sign = if (pendingBrainwasherDelta > 0) "+" else ""
+                    Text(
+                        text = "Brainwasher ativo: ${sign}${pendingBrainwasherDelta}d6 na próxima Terapia de Humanidade.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = CyberAmber
+                    )
+                }
+                TherapyType.entries.forEach { type ->
+                    FilterChip(
+                        selected = selectedType == type,
+                        onClick = { selectedType = type },
+                        label = { Text(type.labelPt) }
+                    )
+                }
+                Text(
+                    text = selectedType.descriptionPt,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (useClinicService) "Clínica (Sucesso Auto)" else "Medtech Próprio (TEC+MedTech)",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = useClinicService,
+                        onCheckedChange = { useClinicService = it }
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Debitar ${cost}eb (Saldo: ${availableEurodollars}eb)",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = payWithEb,
+                        onCheckedChange = { payWithEb = it }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(selectedType, useClinicService, payWithEb) },
+                modifier = Modifier.testTag("confirm_therapy_button")
+            ) { Text("Executar Terapia") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+

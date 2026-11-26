@@ -57,16 +57,20 @@ import com.example.core.rules.OfficialNetArchitectures
 import com.example.core.rules.RangeBracket
 import com.example.core.rules.RangeWeaponCategory
 import com.example.data.local.entity.RuleDocumentEntity
+import com.example.ui.components.ATLAS_GANGS_DGD_TABS
 import com.example.ui.components.BLACK_CHROME_TABS
 import com.example.ui.components.CyberBadge
 import com.example.ui.components.CyberPanel
 import com.example.ui.components.EmptyCyberState
 import com.example.ui.components.INTERFACE_DLC_TABS
 import com.example.ui.components.PART2_COMPENDIUM_TABS
+import com.example.ui.components.SOLO_STEALTH_AGENTS_TABS
 import com.example.ui.components.SectionHeader
+import com.example.ui.components.compendiumAtlasGangsDgdItems
 import com.example.ui.components.compendiumBlackChromeItems
 import com.example.ui.components.compendiumInterfaceDlcItems
 import com.example.ui.components.compendiumPart2Items
+import com.example.ui.components.compendiumSoloStealthAgentsItems
 import com.example.ui.theme.CyberAmber
 import com.example.ui.theme.CyberCyan
 import com.example.ui.theme.CyberEmerald
@@ -85,11 +89,13 @@ fun RuleLibraryScreen(
 ) {
     val context = LocalContext.current
     var excerptTargetDoc by remember { mutableStateOf<RuleDocumentEntity?>(null) }
-    var compendiumVolume by remember { mutableIntStateOf(0) } // 0=Core P1, 1=Core P2, 2=Interface RED 1-3, 3=Black Chrome & Hook Book
+    var compendiumVolume by remember { mutableIntStateOf(0) } // 0..5
     var compendiumTab by remember { mutableIntStateOf(0) }
     var part2Tab by remember { mutableIntStateOf(0) }
     var dlcTab by remember { mutableIntStateOf(0) }
     var bcTab by remember { mutableIntStateOf(0) }
+    var soloStealthTab by remember { mutableIntStateOf(0) }
+    var atlasDgdTab by remember { mutableIntStateOf(0) }
 
     val pdfPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -221,8 +227,8 @@ fun RuleLibraryScreen(
 
         item {
             SectionHeader(
-                title = "Compêndio Oficial — Livro + Interface + Black Chrome",
-                subtitle = "Livro Básico + Interface RED 1–3 + Black Chrome + Hook Book + TOTR+",
+                title = "Compêndio Oficial — Livro + DLCs + Atlas & DGD",
+                subtitle = "Core + Interface 1–3 + Black Chrome + Solo+ + Going Quiet + Agents + Atlas + DGD",
                 accentColor = CyberEmerald
             )
             Spacer(Modifier.height(8.dp))
@@ -257,6 +263,22 @@ fun RuleLibraryScreen(
                         onClick = { compendiumVolume = 3 },
                         label = { Text("Black Chrome & Ganchos") },
                         modifier = Modifier.testTag("compendium_black_chrome_chip")
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = compendiumVolume == 4,
+                        onClick = { compendiumVolume = 4 },
+                        label = { Text("Solo+, Furtivo & Agents") },
+                        modifier = Modifier.testTag("compendium_solo_stealth_chip")
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = compendiumVolume == 5,
+                        onClick = { compendiumVolume = 5 },
+                        label = { Text("Atlas, Gangues & DGD") },
+                        modifier = Modifier.testTag("compendium_atlas_dgd_chip")
                     )
                 }
             }
@@ -296,13 +318,35 @@ fun RuleLibraryScreen(
                         }
                     }
                 }
-                else -> {
+                3 -> {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         items(BLACK_CHROME_TABS.indices.toList()) { idx ->
                             FilterChip(
                                 selected = bcTab == idx,
                                 onClick = { bcTab = idx },
                                 label = { Text(BLACK_CHROME_TABS[idx]) }
+                            )
+                        }
+                    }
+                }
+                4 -> {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(SOLO_STEALTH_AGENTS_TABS.indices.toList()) { idx ->
+                            FilterChip(
+                                selected = soloStealthTab == idx,
+                                onClick = { soloStealthTab = idx },
+                                label = { Text(SOLO_STEALTH_AGENTS_TABS[idx]) }
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(ATLAS_GANGS_DGD_TABS.indices.toList()) { idx ->
+                            FilterChip(
+                                selected = atlasDgdTab == idx,
+                                onClick = { atlasDgdTab = idx },
+                                label = { Text(ATLAS_GANGS_DGD_TABS[idx]) }
                             )
                         }
                     }
@@ -316,6 +360,10 @@ fun RuleLibraryScreen(
             compendiumInterfaceDlcItems(selectedDlcTab = dlcTab)
         } else if (compendiumVolume == 3) {
             compendiumBlackChromeItems(selectedBcTab = bcTab)
+        } else if (compendiumVolume == 4) {
+            compendiumSoloStealthAgentsItems(selectedTab = soloStealthTab)
+        } else if (compendiumVolume == 5) {
+            compendiumAtlasGangsDgdItems(selectedTab = atlasDgdTab)
         } else when (compendiumTab) {
             0 -> item {
                 CyberPanel(accentColor = CyberEmerald) {

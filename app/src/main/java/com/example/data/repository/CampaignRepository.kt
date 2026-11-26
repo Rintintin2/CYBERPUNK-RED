@@ -4,6 +4,7 @@ import com.example.core.rules.CharacterCalculator
 import com.example.core.rules.OfficialSkillCatalog
 import com.example.core.rules.RedRole
 import com.example.core.rules.RedStat
+import com.example.core.rules.StreetratPregenSpec
 import com.example.data.local.dao.CampaignDao
 import com.example.data.local.dao.CharacterDao
 import com.example.data.local.dao.SystemsDao
@@ -11,6 +12,8 @@ import com.example.data.local.entity.CampaignEntity
 import com.example.data.local.entity.CampaignSaveEntity
 import com.example.data.local.entity.CharacterEntity
 import com.example.data.local.entity.CharacterSkillEntity
+import com.example.data.local.entity.CyberwareEntity
+import com.example.data.local.entity.InventoryItemEntity
 import com.example.data.local.entity.JournalEntryEntity
 import com.example.data.local.entity.JournalEntryType
 import com.squareup.moshi.JsonClass
@@ -32,7 +35,10 @@ data class CampaignSnapshotPayload(
     val humanityLoss: Int?,
     val headArmorSp: Int?,
     val bodyArmorSp: Int?,
-    val improvementPoints: Int? = null
+    val improvementPoints: Int? = null,
+    val currentDistrictCode: String? = null,
+    val flashOfLuckMissionUses: Int? = null,
+    val flashOfLuckBeatUsed: Boolean? = null
 )
 
 class CampaignRepository(
@@ -111,6 +117,110 @@ class CampaignRepository(
         return campaignId
     }
 
+    suspend fun createCampaignFromPregen(
+        campaignTitle: String,
+        settingNotes: String,
+        pregen: StreetratPregenSpec
+    ): Long {
+        campaignDao.clearAllActiveFlags()
+        val cleanTitle = campaignTitle.trim().ifEmpty { "${pregen.handle} — Single Shot" }
+        val campaignId = campaignDao.insertCampaign(
+            CampaignEntity(
+                title = cleanTitle,
+                settingNotes = settingNotes.trim().ifEmpty { "Night City — Era do Vermelho (Single Shot Pack)" },
+                inGameDay = 1,
+                inGameHour = 20,
+                eurodollars = pregen.startingCashEb,
+                isActive = true
+            )
+        )
+
+        val stats = pregen.stats
+        val maxHp = CharacterCalculator.calculateMaxHp(stats.body, stats.willpower)
+        val humanityLoss = (pregen.maxHumanity - pregen.currentHumanity).coerceAtLeast(0)
+        val characterId = characterDao.insertCharacter(
+            CharacterEntity(
+                campaignId = campaignId,
+                handle = pregen.handle,
+                role = pregen.role,
+                roleRank = pregen.roleRank,
+                intelligence = stats.intelligence,
+                reflexes = stats.reflexes,
+                dexterity = stats.dexterity,
+                technique = stats.technique,
+                cool = stats.cool,
+                willpower = stats.willpower,
+                luckMax = stats.luckMax,
+                luckCurrent = stats.luckMax,
+                move = stats.move,
+                body = stats.body,
+                empathyMax = stats.empathyMax,
+                currentHp = maxHp,
+                humanityLoss = humanityLoss,
+                headArmorSp = pregen.headSp,
+                bodyArmorSp = pregen.bodySp,
+                isPrimary = true,
+                notes = "${pregen.bioPt} (${pregen.roleSpecialDetailPt})"
+            )
+        )
+
+        val byName = OfficialSkillCatalog.allSkills.associateBy { it.namePt }
+        val skillEntities = pregen.skills.map { (skillName, level) ->
+            val def = byName[skillName]
+            CharacterSkillEntity(
+                characterId = characterId,
+                name = skillName,
+                stat = def?.stat ?: RedStat.INT,
+                level = level,
+                category = def?.categoryPt ?: "Geral"
+            )
+        }
+        characterDao.insertSkills(skillEntities)
+
+        pregen.cyberware.forEach { cw ->
+            characterDao.insertCyberware(
+                CyberwareEntity(
+                    characterId = characterId,
+                    name = cw.namePt,
+                    slotArea = cw.slotArea,
+                    humanityCost = cw.humanityCost,
+                    installed = true,
+                    notes = cw.notesPt
+                )
+            )
+        }
+
+        pregen.inventory.forEach { item ->
+            systemsDao.insertInventoryItem(
+                InventoryItemEntity(
+                    campaignId = campaignId,
+                    characterId = characterId,
+                    name = item.namePt,
+                    itemType = item.itemType,
+                    priceCategory = item.priceCategory,
+                    costEb = item.costEb,
+                    quantity = item.quantity,
+                    damageDice = item.damageDice,
+                    stoppingPower = item.stoppingPower,
+                    isEquipped = item.isEquipped,
+                    notes = item.notesPt
+                )
+            )
+        }
+
+        systemsDao.insertJournalEntry(
+            JournalEntryEntity(
+                campaignId = campaignId,
+                entryType = JournalEntryType.SYSTEM_EVENT,
+                speakerLabel = "Single Shot Pack",
+                bodyText = "Campanha \"$cleanTitle\" iniciada com arquétipo ${pregen.handle} (${pregen.role.displayNamePt} ${pregen.roleRank}): $maxHp PV, ${pregen.currentHumanity} HUM, ${pregen.startingCashEb} eb e kit completo.",
+                inGameTimestamp = "Dia 1 • 20:00"
+            )
+        )
+
+        return campaignId
+    }
+
     suspend fun setActiveCampaign(campaignId: Long) {
         campaignDao.setActiveCampaign(campaignId)
     }
@@ -175,7 +285,10 @@ class CampaignRepository(
             humanityLoss = primaryCharacter?.humanityLoss,
             headArmorSp = primaryCharacter?.headArmorSp,
             bodyArmorSp = primaryCharacter?.bodyArmorSp,
-            improvementPoints = primaryCharacter?.improvementPoints
+            improvementPoints = primaryCharacter?.improvementPoints,
+            currentDistrictCode = campaign.currentDistrictCode,
+            flashOfLuckMissionUses = campaign.flashOfLuckMissionUses,
+            flashOfLuckBeatUsed = campaign.flashOfLuckBeatUsed
         )
         val json = snapshotAdapter.toJson(payload)
         campaignDao.insertSaveSnapshot(
@@ -197,6 +310,9 @@ class CampaignRepository(
                 inGameHour = payload.inGameHour,
                 rentDueInDays = payload.rentDueInDays,
                 eurodollars = payload.eurodollars,
+                currentDistrictCode = payload.currentDistrictCode ?: campaign.currentDistrictCode,
+                flashOfLuckMissionUses = payload.flashOfLuckMissionUses ?: campaign.flashOfLuckMissionUses,
+                flashOfLuckBeatUsed = payload.flashOfLuckBeatUsed ?: campaign.flashOfLuckBeatUsed,
                 updatedAt = System.currentTimeMillis()
             )
         )

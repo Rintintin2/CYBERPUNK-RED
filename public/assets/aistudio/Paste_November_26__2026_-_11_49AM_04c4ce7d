@@ -1,0 +1,1191 @@
+CYBERPUNK RED — INSTRUÇÃO COMPLETA DA SEGUNDA ETAPA DE DESENVOLVIMENTO
+
+OBJETIVO GERAL
+
+Estamos desenvolvendo o CYBERPUNK RED, um aplicativo Android nativo para jogar Cyberpunk RED em campanha solo.
+
+O projeto já possui uma estrutura inicial e está sendo integrado a partir de um repositório GitHub. Os PDFs do livro básico/Masterbook e dos DLCs estão sendo enviados para extração e integração.
+
+Sua tarefa será transformar a estrutura existente em um aplicativo de RPG realmente funcional, completo e fiel às regras oficiais.
+
+ATENÇÃO: a extração, leitura, indexação ou integração dos PDFs NÃO significa que as regras já estejam implementadas no aplicativo. É obrigatório auditar o código e os dados existentes, identificar o que realmente funciona e implementar ou corrigir tudo o que estiver faltando.
+
+Não comece reescrevendo o projeto do zero. Primeiro compreenda e audite o que já existe.
+
+---
+
+1. REGRAS FUNDAMENTAIS DO PROJETO
+
+1. O aplicativo deve ser Android nativo, desenvolvido em Kotlin e Jetpack Compose.
+2. Não utilizar PWA, site, WebView, Capacitor ou soluções que apenas simulem um aplicativo nativo.
+3. O aplicativo é específico para Cyberpunk RED, com foco em campanhas solo.
+4. Utilizar o livro básico/Masterbook e todos os DLCs fornecidos como fontes centrais.
+5. Não inventar regras, equipamentos, habilidades, estatísticas ou conteúdos Homebrew sem autorização explícita.
+6. Quando houver divergências entre publicações, erratas ou versões, registrar a origem e não escolher arbitrariamente uma interpretação.
+7. O sistema mecânico precisa funcionar offline. A utilização de IA não pode ser necessária para calcular regras, executar testes ou controlar o estado do jogo.
+8. Não remover funcionalidades existentes que estejam funcionando corretamente.
+9. Não substituir sistemas funcionais por telas decorativas, placeholders ou implementações simplificadas.
+10. Preservar a arquitetura existente sempre que possível, melhorando-a de maneira organizada.
+
+O objetivo é que o aplicativo seja capaz de conduzir uma campanha solo de Cyberpunk RED sem depender de consultas externas aos PDFs durante o jogo.
+
+---
+
+2. AUDITORIA OBRIGATÓRIA ANTES DE IMPLEMENTAR
+
+Antes de modificar qualquer código, faça uma auditoria completa do projeto existente.
+
+Examine:
+
+- Estrutura de pastas e arquivos.
+- Configurações Gradle e dependências.
+- Arquitetura Kotlin e Jetpack Compose.
+- Navegação entre telas.
+- ViewModels e repositórios.
+- Banco de dados Room.
+- Entidades, DAOs e relacionamentos.
+- Sistemas mecânicos existentes.
+- Catálogos e dados já extraídos.
+- Persistência de campanhas e personagens.
+- Importação e processamento de PDFs.
+- Testes existentes.
+- Build e configuração de compilação.
+- Integrações e dependências externas.
+
+Para cada sistema, classifique o estado real:
+
+- Implementado: funcional e validado.
+- Parcial: existe, mas faltam partes importantes.
+- Estrutural: existem modelos, telas ou contratos, mas não há funcionamento completo.
+- Ausente: ainda não foi implementado.
+- Com erro: existe, mas apresenta comportamento incorreto.
+
+Não considere a existência de uma classe, tela, entidade ou método como prova de que uma funcionalidade está concluída.
+
+Entrega obrigatória da auditoria
+
+Apresente:
+
+1. Resumo da arquitetura atual.
+2. Lista dos sistemas existentes e seu estado real.
+3. Lista de problemas e possíveis bugs.
+4. Matriz de cobertura dos conteúdos oficiais.
+5. Comparação entre o conteúdo dos PDFs e o que realmente está implementado.
+6. Lista de funcionalidades ausentes ou incompletas.
+7. Plano de implementação organizado por etapas.
+8. Identificação dos arquivos que precisarão ser modificados ou criados.
+
+Não comece uma grande implementação antes de apresentar essa auditoria e o plano.
+
+---
+
+3. COBERTURA COMPLETA DAS REGRAS E MECÂNICAS
+
+O aplicativo precisa implementar os sistemas mecânicos relevantes encontrados nas fontes oficiais.
+
+Não se limite à lista abaixo: ela estabelece os requisitos mínimos, mas todo conteúdo mecânico adicional encontrado nos PDFs também deverá ser avaliado.
+
+3.1 Personagens
+
+Implementar integralmente:
+
+- Todas as Roles oficiais.
+- Netrunner incluído como personagem jogável normal.
+- Atributos.
+- Perícias.
+- Valores derivados.
+- Criação de personagem.
+- Progressão.
+- Habilidades de Role.
+- Lifepath.
+- Testes de perícia.
+- Dificuldades (DV).
+- Modificadores.
+- Humanidade.
+- Perda de Humanidade.
+- Recuperação.
+- Cyberware.
+- Equipamentos iniciais.
+- Requisitos e restrições de cada opção.
+
+A criação de personagens precisa respeitar as regras oficiais, incluindo limites, custos, escolhas obrigatórias e dependências.
+
+3.2 Ficha completa
+
+A ficha deve conter, quando aplicável:
+
+- Identidade e nome.
+- Role.
+- Atributos.
+- Perícias.
+- Pontos de Vida (PV).
+- Pontos de Armadura (PA).
+- Humanidade.
+- Perda de Humanidade.
+- Sorte.
+- Death Save.
+- Ferimentos e estados.
+- Armaduras.
+- Armas.
+- Munições.
+- Cyberware.
+- Inventário.
+- Dinheiro.
+- Recursos e demais valores previstos nas fontes.
+
+Os valores derivados precisam ser calculados pelo motor mecânico, e não digitados manualmente quando puderem ser determinados pelas regras.
+
+3.3 Testes e rolagens
+
+Implementar:
+
+- Rolagens de dados.
+- Testes de perícia.
+- Testes opostos.
+- Dificuldades.
+- Modificadores positivos e negativos.
+- Resultados especiais.
+- Sucessos e falhas.
+- Regras específicas para cada tipo de teste.
+
+Verifique cuidadosamente as comparações com a DV. Por exemplo, não presuma que sucesso é sempre "total > DV": confirme a condição correta nas fontes oficiais e implemente exatamente o comportamento previsto.
+
+O resultado de uma rolagem precisa ser reproduzível, registrado e apresentado de maneira compreensível.
+
+3.4 Combate
+
+Implementar o sistema de combate completo:
+
+- Iniciativa.
+- Ordem dos participantes.
+- Turnos.
+- Ações.
+- Movimento.
+- Distâncias.
+- Ataques à distância.
+- Ataques corpo a corpo.
+- Defesa e esquiva.
+- Armas.
+- Munição.
+- Recarga.
+- Modificadores.
+- Cobertura.
+- Armadura.
+- Dano.
+- Localização de impactos, quando aplicável.
+- Ferimentos críticos.
+- Consequências.
+- Estados dos participantes.
+- Morte e regras relacionadas.
+- Registro e persistência do combate.
+
+O combate precisa interagir com a ficha, os equipamentos, as armas, as munições e os ferimentos.
+
+Não basta ter uma tela que permita registrar manualmente o resultado de uma luta.
+
+3.5 Ferimentos, tratamento e recuperação
+
+Implementar as regras oficiais de:
+
+- Ferimentos.
+- Ferimentos críticos.
+- Primeiros socorros.
+- Estabilização.
+- Tratamento.
+- Recuperação de PV.
+- Recuperação de Humanidade.
+- Descanso.
+- Consequências e condições.
+- Morte e sobrevivência.
+
+Todos os efeitos precisam atualizar corretamente o estado do personagem.
+
+3.6 Equipamentos e catálogos
+
+Criar catálogos estruturados e completos dos conteúdos presentes nas fontes:
+
+- Armas de fogo.
+- Armas corpo a corpo.
+- Armas especiais.
+- Munições e tipos de munição.
+- Armaduras.
+- Equipamentos de proteção.
+- Ferramentas.
+- Consumíveis.
+- Explosivos.
+- Acessórios.
+- Modificações.
+- Outros itens mecânicos oficiais.
+
+Cada item precisa conter os dados necessários para seu funcionamento, não apenas nome e descrição.
+
+Conforme aplicável, registrar:
+
+- Categoria.
+- Preço.
+- Dano.
+- Alcance.
+- Capacidade.
+- Peso ou outros atributos previstos.
+- Requisitos.
+- Modificadores.
+- Efeitos.
+- Compatibilidade.
+- Regras especiais.
+- Referência à publicação e página.
+
+Os itens devem estar integrados ao inventário.
+
+O jogador precisa conseguir comprar, vender, equipar, desequipar, consumir, modificar e remover itens conforme as regras.
+
+3.7 Cyberware
+
+Implementar:
+
+- Categorias.
+- Tipos.
+- Requisitos.
+- Custos.
+- Slots e limites.
+- Compatibilidade.
+- Instalação.
+- Remoção.
+- Perda de Humanidade.
+- Efeitos mecânicos.
+- Integração com ficha.
+- Integração com equipamentos.
+- Integração com combate.
+
+O sistema precisa impedir combinações inválidas e respeitar os limites oficiais.
+
+3.8 Economia e mercado
+
+Implementar:
+
+- Dinheiro.
+- Preços.
+- Compra.
+- Venda.
+- Serviços.
+- Disponibilidade.
+- Transações.
+- Histórico.
+- Integração com inventário.
+- Integração com campanha.
+
+Toda movimentação financeira precisa atualizar os valores corretamente.
+
+3.9 Veículos
+
+Implementar o conteúdo mecânico oficial de veículos presente nos materiais:
+
+- Tipos.
+- Atributos.
+- Características.
+- Custos.
+- Requisitos.
+- Utilização.
+- Danos.
+- Regras de condução e demais mecânicas aplicáveis.
+
+3.10 Netrunning — prioridade especial
+
+O sistema de Netrunning é uma das partes mais importantes do aplicativo.
+
+Ele não pode ser tratado como uma tela secundária ou uma funcionalidade simplificada.
+
+Implementar integralmente o conteúdo oficial encontrado nos materiais:
+
+- Cyberdecks.
+- Slots e capacidades.
+- Programas.
+- Categorias de programas.
+- Black ICE.
+- NET Architectures.
+- Nós.
+- Camadas.
+- Segurança.
+- Ações de Netrunning.
+- Interface da NET.
+- REZ.
+- Ataques.
+- Defesa.
+- Efeitos.
+- Combate na NET.
+- Consequências.
+- Equipamentos.
+- Requisitos.
+- Progressão.
+- Regras específicas de Netrunners.
+
+O sistema precisa permitir criar um Netrunner, equipá-lo corretamente, construir e explorar arquiteturas NET e executar as ações previstas nas regras oficiais.
+
+Todos os cálculos e efeitos devem ser executados pelo motor Kotlin.
+
+Não criar uma simulação visual sem mecânicas reais por trás.
+
+3.11 NPCs, facções e missões
+
+Implementar:
+
+- Cadastro de NPCs.
+- Características.
+- Atributos e estatísticas quando aplicáveis.
+- Perícias.
+- Equipamentos.
+- Relações.
+- Histórico.
+- Informações descobertas.
+- Facções.
+- Relações entre facções.
+- Missões.
+- Objetivos.
+- Progresso.
+- Recompensas.
+- Consequências.
+- Estados e eventos.
+
+Esses elementos precisam estar vinculados à campanha correspondente.
+
+---
+
+4. CAMPANHAS, SESSÕES E CALENDÁRIO
+
+A campanha deve ser o centro da experiência.
+
+Implementar uma estrutura persistente para:
+
+- Criar campanhas.
+- Selecionar campanha ativa.
+- Editar campanhas.
+- Excluir campanhas.
+- Vincular personagens.
+- Vincular NPCs.
+- Vincular facções.
+- Vincular missões.
+- Controlar inventário e recursos.
+- Registrar eventos.
+- Registrar sessões.
+- Registrar objetivos.
+- Registrar progresso.
+- Consultar histórico.
+- Salvar e carregar o estado completo.
+
+Calendário contínuo
+
+O aplicativo precisa possuir um calendário interno da campanha, independente do relógio real do telefone.
+
+O tempo deve avançar de maneira coerente conforme as ações:
+
+- Ações rápidas levam segundos ou minutos.
+- Conversas levam o tempo correspondente.
+- Investigações consomem tempo.
+- Deslocamentos consomem tempo.
+- Combates consomem tempo.
+- Descanso e tratamentos consomem o período previsto.
+
+Registrar data e horário atuais da campanha.
+
+O calendário precisa ser salvo e restaurado corretamente.
+
+Sessões
+
+Uma sessão deve registrar:
+
+- Acontecimentos.
+- Decisões.
+- Rolagens.
+- Alterações na ficha.
+- Alterações de inventário.
+- Mudanças financeiras.
+- Eventos de NPCs.
+- Progresso de missões.
+- Passagem do tempo.
+- Consequências.
+
+Não perder o estado da campanha ao fechar ou reiniciar o aplicativo.
+
+---
+
+5. CRIAÇÃO DE PERSONAGEM E IMAGEM
+
+O fluxo de criação deve ser organizado e completo:
+
+1. Identidade.
+2. Conceito.
+3. Role.
+4. Atributos.
+5. Perícias.
+6. Lifepath.
+7. Habilidades.
+8. Equipamentos.
+9. Armas.
+10. Armadura.
+11. Cyberware.
+12. Humanidade.
+13. Aparência e história.
+14. Revisão final.
+
+Imagem do personagem
+
+Durante a criação, oferecer a possibilidade de adicionar uma imagem do personagem.
+
+O jogador poderá:
+
+- Escolher uma imagem da galeria.
+- Tirar uma foto com a câmera.
+- Pular essa etapa.
+- Adicionar ou alterar a imagem posteriormente.
+
+A imagem deverá ficar vinculada ao personagem e à campanha.
+
+Tela de equipamentos
+
+A imagem escolhida pelo jogador deverá funcionar como fundo da tela de equipamentos.
+
+A interface terá painéis e listas semitransparentes sobrepostos à imagem, seguindo a estética de uma tela de equipamentos de videogame.
+
+Categorias:
+
+- Armas.
+- Armaduras.
+- Roupas.
+- Cyberware.
+- Acessórios.
+- Equipamentos.
+
+Importante: não remover o fundo, não recortar o personagem por IA, não fazer segmentação, não gerar novas versões e não alterar automaticamente as roupas ou armaduras da imagem original.
+
+A imagem funciona como plano de fundo visual. Os dados mecânicos dos equipamentos são apresentados nos painéis.
+
+O retrato também poderá aparecer na ficha, no diário ou em outros locais onde fizer sentido.
+
+---
+
+6. IDENTIDADE VISUAL E DESIGN
+
+Nome oficial: CYBERPUNK RED.
+
+Identidade visual: HÍBRIDO RED//NEON.
+
+Paleta:
+
+- Preto profundo: "#090B10"
+- Grafite: "#171B25"
+- Vermelho neon: "#FF303F"
+- Azul elétrico: "#00C8FF"
+- Branco frio: "#F5F5F5"
+- Amarelo: "#F5C542"
+
+Uso das cores:
+
+- Vermelho: ações, perigo, combate e alertas críticos.
+- Azul: NET, tecnologia e Netrunning.
+- Amarelo: avisos e alertas.
+- Grafite: painéis e superfícies.
+- Branco: textos e informações.
+
+O neon deve ser utilizado com moderação, priorizando legibilidade.
+
+A interface deve ser:
+
+- Mobile-first.
+- Moderna.
+- Organizada.
+- Intuitiva.
+- Visualmente marcante.
+- Inspirada em videogames e ferramentas digitais de RPG.
+
+Evitar excesso de informações na mesma tela.
+
+---
+
+7. NAVEGAÇÃO HÍBRIDA
+
+A navegação deve combinar uma barra inferior com um painel lateral direito.
+
+Barra inferior
+
+Quatro áreas principais:
+
+1. Início.
+2. Campanhas.
+3. Personagem/Ficha.
+4. Jogar.
+
+Essas áreas devem ser acessíveis rapidamente durante o uso.
+
+Painel lateral direito
+
+Criar um painel que abra deslizando da direita para a esquerda.
+
+Ele também deve possuir um botão visível para abertura, evitando depender exclusivamente de gestos.
+
+O painel reunirá:
+
+Sistemas
+
+- Mercado e economia.
+- NPCs.
+- Facções.
+- Missões.
+- Veículos.
+- Outros sistemas mecânicos.
+
+Compêndio
+
+- Regras.
+- Equipamentos.
+- Armas.
+- Munições.
+- Armaduras.
+- Cyberware.
+- Programas.
+- Black ICE.
+- Veículos.
+- Outros conteúdos oficiais.
+
+Diário/Histórico
+
+- Diário.
+- Sessões.
+- Acontecimentos.
+- Objetivos.
+- Progresso.
+- Histórico da campanha.
+
+Inteligência Artificial
+
+- Provedores.
+- Modelos.
+- Contas e configurações.
+- Chaves de API.
+- Configuração do narrador.
+- Teste de conexão.
+
+Configurações
+
+- Aparência.
+- Áudio.
+- Jogabilidade.
+- Dados e backups.
+- Biblioteca.
+- Sobre.
+
+Comportamento
+
+- O painel deve fechar ao tocar fora dele.
+- Deve fechar após selecionar uma opção, quando apropriado.
+- Deve possuir rolagem quando necessário.
+- Deve indicar a seção selecionada.
+- Deve preservar o contexto da campanha ativa.
+- Consultar o compêndio não pode fazer o jogador perder o estado da sessão.
+- Evitar conflitos com os gestos do Android.
+
+As configurações ficam nesse painel lateral. Não é necessário adicionar uma engrenagem no topo de todas as telas.
+
+---
+
+8. COMPÊNDIO OFFLINE
+
+Criar um compêndio nativo, organizado e pesquisável.
+
+Não basta apresentar uma lista de PDFs.
+
+O compêndio deve permitir consultar conteúdos durante a campanha, incluindo:
+
+- Regras.
+- Perícias.
+- Roles.
+- Equipamentos.
+- Armas.
+- Munições.
+- Armaduras.
+- Cyberware.
+- Programas.
+- Black ICE.
+- Veículos.
+- Netrunning.
+- Outros conteúdos oficiais.
+
+Cada conteúdo deverá preservar sua origem, publicação e página de referência, quando disponíveis.
+
+O compêndio precisa funcionar offline e estar integrado aos sistemas mecânicos e aos catálogos.
+
+Os PDFs devem servir como fontes de desenvolvimento e referência, não como dependência para o funcionamento normal do jogo.
+
+---
+
+9. ORGANIZAÇÃO DOS DADOS E DAS FONTES
+
+É obrigatório separar três camadas:
+
+A. Código mecânico
+
+Regras determinísticas implementadas em Kotlin.
+
+Exemplos: cálculo de dano, testes, combate, economia, Humanity Loss e Netrunning.
+
+B. Dados estruturados
+
+Catálogos e registros dos conteúdos oficiais.
+
+Exemplos: armas, armaduras, cyberware, programas, veículos e NPCs.
+
+Os dados precisam conter os campos necessários para que as regras funcionem.
+
+C. Compêndio
+
+Conteúdo pesquisável, com explicações e referências às publicações e páginas.
+
+Não confundir essas três camadas.
+
+Tratamento de divergências
+
+Durante a extração e implementação:
+
+- Identificar duplicações.
+- Identificar erratas.
+- Identificar variantes.
+- Identificar conflitos.
+- Preservar a publicação de origem.
+- Preservar páginas e referências.
+- Registrar decisões de interpretação.
+
+Não misturar silenciosamente versões diferentes de uma regra.
+
+Quando não for possível determinar a regra correta, registrar a dúvida para revisão em vez de inventar uma solução.
+
+---
+
+10. ARQUITETURA E QUALIDADE TÉCNICA
+
+Manter uma arquitetura organizada, aproveitando a estrutura existente.
+
+Tecnologias e princípios desejados:
+
+- Kotlin.
+- Jetpack Compose.
+- Room.
+- MVVM.
+- Coroutines.
+- Navigation Compose.
+- Separação entre interface, domínio e dados.
+
+A lógica mecânica não deve ficar dentro de componentes visuais ou ser espalhada pelos ViewModels.
+
+Os motores devem ser independentes da interface e testáveis.
+
+Auditar e corrigir:
+
+- Entidades e relacionamentos Room.
+- DAOs.
+- Repositórios.
+- Migrations.
+- Integridade dos dados.
+- Seleção da campanha ativa.
+- Persistência.
+- Recuperação após encerramento.
+- Tratamento de erros.
+- Validação de entradas.
+
+Não utilizar "fallback" silencioso que esconda erros mecânicos ou perda de dados.
+
+Não desabilitar testes ou verificações para fazer o build passar.
+
+---
+
+11. TESTES OBRIGATÓRIOS
+
+Não considerar o projeto concluído apenas porque compila.
+
+Criar e executar testes unitários e de integração para os motores e sistemas.
+
+Testar especialmente:
+
+- Rolagens.
+- Testes de perícia.
+- DV.
+- Modificadores.
+- Valores derivados.
+- Criação de personagem.
+- Progressão.
+- Humanity Loss.
+- Cyberware.
+- Equipamentos.
+- Inventário.
+- Economia.
+- Combate.
+- Ferimentos.
+- Recuperação.
+- Netrunning.
+- Veículos.
+- Persistência.
+- Campanhas e sessões.
+
+Teste de fluxo completo
+
+Validar um fluxo real:
+
+1. Criar campanha.
+2. Criar personagem.
+3. Adicionar imagem.
+4. Equipar personagem.
+5. Iniciar sessão.
+6. Realizar testes.
+7. Iniciar combate.
+8. Aplicar danos e consequências.
+9. Atualizar inventário e recursos.
+10. Avançar o calendário.
+11. Salvar.
+12. Fechar o aplicativo.
+13. Abrir novamente.
+14. Confirmar que tudo foi restaurado corretamente.
+
+Também testar especificamente a criação e utilização de um Netrunner.
+
+---
+
+12. INTELIGÊNCIA VISUAL — ETAPA FUTURA
+
+O projeto deverá estar preparado para receber um sistema de inteligência visual integrado ao narrador.
+
+A ideia é que o narrador solicite imagens relevantes conforme o contexto da cena.
+
+O aplicativo deverá:
+
+1. Receber a solicitação de imagem.
+2. Pesquisar imagens em fontes externas licenciadas por APIs.
+3. Apresentar opções ao jogador.
+4. Permitir selecionar e confirmar uma imagem.
+5. Salvar a imagem localmente na campanha.
+6. Reutilizar a imagem para manter consistência visual.
+
+Isso poderá ser utilizado para:
+
+- NPCs.
+- Locais.
+- Facções.
+- Itens.
+- Veículos.
+- Outros elementos da campanha.
+
+Exibição durante a narração
+
+A imagem deve aparecer no ponto exato em que foi solicitada, entre os parágrafos da narração.
+
+Exemplo:
+
+Texto narrativo.
+
+Imagem do local descrito.
+
+Continuação do texto narrativo.
+
+Não criar apenas uma galeria separada.
+
+Ao tocar na imagem, o jogador poderá ampliá-la e consultar sua origem.
+
+O histórico da sessão deverá preservar as imagens utilizadas.
+
+Restrições
+
+Não exigir uma segunda IA geradora de imagens.
+
+A prioridade é pesquisar e selecionar imagens existentes em fontes adequadas, com atenção às licenças e às condições de uso das APIs.
+
+Geração de imagens poderá ser um recurso opcional no futuro, mas não é requisito para esse sistema.
+
+Preparar a arquitetura sem deixar essa funcionalidade desviar a prioridade da conclusão dos sistemas mecânicos.
+
+---
+
+13. NARRADOR DE INTELIGÊNCIA ARTIFICIAL — ÚLTIMA ETAPA
+
+O narrador IA deverá ser implementado somente depois que a base mecânica estiver estável.
+
+Separação de responsabilidades
+
+Motor Kotlin:
+
+- Regras.
+- Rolagens.
+- Testes.
+- Combate.
+- Ficha.
+- Economia.
+- Inventário.
+- Netrunning.
+- Calendário.
+- Consequências.
+- Alterações no estado da campanha.
+
+Narrador IA:
+
+- Narração.
+- Diálogos.
+- Descrição de cenas.
+- Interpretação de NPCs.
+- Desenvolvimento narrativo.
+- Solicitação de imagens.
+- Interação com o jogador.
+
+A IA poderá solicitar ações ao motor, mas o motor deverá validar e executar todas as alterações.
+
+A IA não poderá inventar resultados mecânicos, alterar valores livremente ou ignorar regras oficiais.
+
+Configurações de IA
+
+Criar uma seção específica em:
+
+Configurações → Inteligência Artificial
+
+Ela deverá permitir:
+
+- Configurar múltiplos provedores.
+- Cadastrar múltiplas contas ou configurações.
+- Armazenar chaves de API de maneira protegida.
+- Selecionar provedor.
+- Selecionar modelo.
+- Escolher o narrador ativo.
+- Alternar entre configurações.
+- Testar conexão.
+- Exibir erros.
+- Exibir limites de uso quando disponíveis.
+
+Provedores
+
+O primeiro narrador planejado é o Gemini, priorizando opções gratuitas.
+
+Entretanto, a arquitetura deve ser independente do provedor, permitindo futuras integrações com OpenAI, Claude e outros serviços compatíveis.
+
+Não acoplar o sistema inteiro a uma única API.
+
+Segurança
+
+Nunca incluir chaves de API, senhas ou credenciais diretamente no código-fonte, repositório público, APK ou logs.
+
+Utilizar mecanismos adequados de proteção, como Android Keystore e armazenamento criptografado, considerando as limitações de segurança de credenciais mantidas no próprio dispositivo.
+
+Nunca expor credenciais nos arquivos de documentação ou nos relatórios de desenvolvimento.
+
+---
+
+14. SEGURANÇA DO REPOSITÓRIO E CONTINUIDADE DO DESENVOLVIMENTO
+
+O projeto está armazenado em um repositório GitHub que será utilizado como fonte oficial do código.
+
+O repositório poderá ser acessado por diferentes sessões ou contas do Google AI Studio.
+
+Por isso:
+
+- Sempre examinar o estado atual do repositório antes de trabalhar.
+- Não presumir que o histórico de conversa esteja disponível.
+- Não sobrescrever alterações de outra sessão sem verificar.
+- Não realizar operações destrutivas sem autorização.
+- Manter commits organizados.
+- Registrar alterações importantes.
+- Não incluir segredos no Git.
+- Verificar arquivos modificados antes de cada commit.
+- Garantir que o projeto possa ser retomado por outra sessão.
+
+A troca de sessão ou conta deve preservar a continuidade do desenvolvimento, respeitando as condições de uso e os limites dos serviços utilizados.
+
+---
+
+15. METODOLOGIA DE DESENVOLVIMENTO
+
+Trabalhar em ciclos controlados.
+
+Cada ciclo deve seguir:
+
+1. Auditar o sistema envolvido.
+2. Identificar lacunas.
+3. Consultar as fontes oficiais.
+4. Planejar as alterações.
+5. Implementar um bloco de funcionalidades.
+6. Compilar.
+7. Executar testes.
+8. Corrigir problemas.
+9. Atualizar a documentação.
+10. Registrar o resultado.
+
+Não tentar implementar tudo em uma única alteração gigantesca.
+
+Não modificar dezenas de arquivos sem uma estratégia clara.
+
+Não apagar funcionalidades boas para simplificar o trabalho.
+
+Quando uma regra estiver incerta, registrar a dúvida e solicitar revisão em vez de improvisar.
+
+Relatório ao final de cada ciclo
+
+Informar:
+
+- O que foi implementado.
+- O que foi corrigido.
+- Arquivos criados.
+- Arquivos modificados.
+- Testes executados.
+- Resultado dos testes.
+- Problemas encontrados.
+- O que ainda falta.
+- Próxima tarefa recomendada.
+
+---
+
+16. ORDEM DE PRIORIDADE E RESULTADO ESPERADO
+
+A implementação deverá seguir esta ordem:
+
+FASE A — Auditoria e consolidação
+
+- Examinar o projeto.
+- Analisar os PDFs e materiais fornecidos.
+- Criar matriz de cobertura.
+- Identificar o que está implementado.
+- Identificar o que está parcial ou ausente.
+- Planejar a implementação.
+
+FASE B — Base mecânica
+
+- Regras.
+- Personagens.
+- Ficha.
+- Testes.
+- Combate.
+- Ferimentos.
+- Equipamentos.
+- Cyberware.
+- Economia.
+- Netrunning.
+- Veículos.
+- Demais sistemas oficiais.
+
+FASE C — Integração e persistência
+
+- Campanhas.
+- Sessões.
+- Inventário.
+- NPCs.
+- Facções.
+- Missões.
+- Calendário.
+- Diário.
+- Compêndio.
+
+FASE D — Interface
+
+- Criação de personagem.
+- Imagem do personagem.
+- Tela de equipamentos com imagem de fundo.
+- Navegação híbrida.
+- Barra inferior.
+- Painel lateral direito.
+- Identidade visual RED//NEON.
+- Adaptação mobile.
+
+FASE E — Testes gerais
+
+- Testes unitários.
+- Testes de integração.
+- Testes de persistência.
+- Testes de fluxo completo.
+- Correções.
+- Validação do funcionamento offline.
+
+FASE F — Inteligência visual
+
+- Pesquisa de imagens.
+- Seleção e confirmação.
+- Armazenamento por campanha.
+- Exibição integrada à narração.
+- Histórico visual.
+
+FASE G — Narrador IA
+
+- Arquitetura independente de provedores.
+- Configurações.
+- Contas e chaves.
+- Seleção de modelo.
+- Comunicação com o motor.
+- Narrador funcional.
+
+Resultado final esperado
+
+Um aplicativo Android nativo chamado CYBERPUNK RED, capaz de conduzir uma campanha solo com:
+
+- Todas as Roles oficiais jogáveis.
+- Criação e gerenciamento completo de personagens.
+- Regras e cálculos mecânicos funcionais.
+- Catálogos oficiais estruturados.
+- Compêndio offline.
+- Combate completo.
+- Netrunning funcional.
+- Economia e inventário.
+- Cyberware.
+- Veículos.
+- NPCs e facções.
+- Missões e objetivos.
+- Campanhas e sessões persistentes.
+- Calendário contínuo.
+- Interface moderna e organizada.
+- Sistema visual preparado para imagens.
+- Arquitetura preparada para o narrador IA.
+
+O aplicativo deverá ser jogável e funcional mesmo antes da implementação do narrador IA.
+
+---
+
+17. DOCUMENTAÇÃO DE CONTINUIDADE E MIGRAÇÃO ENTRE CONTAS
+
+Este requisito é obrigatório.
+
+O desenvolvimento poderá continuar em diferentes sessões, contas Google AI Studio ou ambientes. Portanto, o próprio repositório precisa conter documentação suficiente para que outra sessão de IA consiga assumir o trabalho sem perder decisões, repetir etapas ou contrariar o planejamento.
+
+Criar e manter os seguintes arquivos na raiz do projeto:
+
+17.1 "PROJECT_STATUS.md"
+
+Deve registrar o estado atual do desenvolvimento:
+
+- O que já foi concluído.
+- O que está parcialmente implementado.
+- O que ainda não foi iniciado.
+- Funcionalidades que estão funcionando.
+- Bugs conhecidos.
+- Problemas pendentes.
+- Resultado dos últimos builds.
+- Testes executados e seus resultados.
+- Último ciclo concluído.
+- Próxima tarefa exata a executar.
+
+Esse arquivo deve representar o estado real do código, não uma previsão ou intenção.
+
+17.2 "PROJECT_INSTRUCTIONS.md"
+
+Deve funcionar como manual permanente do projeto.
+
+Registrar:
+
+- Objetivo do CYBERPUNK RED.
+- Identidade e proposta do aplicativo.
+- Arquitetura e tecnologias.
+- Decisões técnicas.
+- Regras fundamentais.
+- Restrições de desenvolvimento.
+- Sistemas obrigatórios.
+- Prioridades.
+- Decisões de interface e UX.
+- Fontes oficiais.
+- Proibição de Homebrew não autorizado.
+- Separação entre motor mecânico e IA.
+- Planejamento de integrações futuras.
+
+Toda nova sessão deverá consultar esse arquivo antes de realizar alterações.
+
+17.3 "MECHANICS_COVERAGE.md"
+
+Deve registrar a cobertura das fontes oficiais.
+
+Para cada publicação, DLC ou material analisado, informar:
+
+- Nome da publicação.
+- Conteúdo analisado.
+- Sistemas encontrados.
+- Regras extraídas.
+- Regras efetivamente implementadas.
+- Dados estruturados.
+- Conteúdos ainda pendentes.
+- Divergências e erratas.
+- Referências de origem e páginas.
+
+Não marcar uma regra como implementada apenas porque ela foi extraída de um PDF ou adicionada ao compêndio.
+
+A implementação precisa existir no código ou nos dados estruturados e ter sido validada.
+
+17.4 "CHANGELOG.md"
+
+Manter um histórico cronológico das alterações.
+
+Registrar:
+
+- Data ou identificação do ciclo.
+- Funcionalidades adicionadas.
+- Correções realizadas.
+- Arquivos criados.
+- Arquivos modificados.
+- Alterações arquiteturais.
+- Testes executados.
+- Problemas resolvidos.
+- Problemas conhecidos.
+
+17.5 Atualização obrigatória
+
+Atualizar esses documentos ao concluir cada ciclo relevante.
+
+Não deixar a documentação para o final do projeto.
+
+Antes de encerrar uma sessão de desenvolvimento, atualizar especialmente:
+
+- "PROJECT_STATUS.md"
+- "MECHANICS_COVERAGE.md"
+- "CHANGELOG.md"
+
+Registrar com clareza qual deve ser a próxima tarefa.
+
+17.6 Procedimento para migração de conta ou sessão
+
+Quando uma nova conta ou sessão assumir o desenvolvimento:
+
+1. Acessar o mesmo repositório GitHub.
+2. Examinar o estado atual do repositório e os últimos commits.
+3. Ler "PROJECT_INSTRUCTIONS.md".
+4. Ler "PROJECT_STATUS.md".
+5. Ler "MECHANICS_COVERAGE.md".
+6. Consultar "CHANGELOG.md".
+7. Examinar os arquivos de código relacionados à próxima tarefa.
+8. Confirmar o que realmente existe no código.
+9. Continuar exatamente do ponto registrado.
+
+Não confiar exclusivamente nos documentos: eles orientam a continuidade, mas o código atual continua sendo a fonte definitiva do estado de implementação.
+
+Não reiniciar o projeto, não repetir tarefas concluídas e não alterar decisões permanentes sem justificativa e autorização.
+
+17.7 GitHub como fonte oficial
+
+O repositório GitHub será a fonte oficial de continuidade do projeto.
+
+Ao terminar um ciclo:
+
+- Verificar as alterações.
+- Executar os testes pertinentes.
+- Atualizar a documentação.
+- Registrar as alterações em commit.
+- Garantir que o estado esteja sincronizado com o repositório.
+
+Não considerar uma alteração concluída se ela existir apenas no ambiente temporário do AI Studio e não tiver sido preservada no repositório.
+
+O objetivo é permitir que outra sessão ou conta assuma o projeto e continue o desenvolvimento sem depender da memória da IA anterior.
+
+---
+
+INSTRUÇÃO FINAL PARA ESTA ETAPA
+
+Neste momento, não pule diretamente para a implementação.
+
+Primeiro conclua a extração e integração dos materiais fornecidos. Em seguida, execute a auditoria completa descrita neste documento.
+
+A primeira entrega desta segunda etapa deve ser a auditoria, a matriz de cobertura e o plano de implementação.
+
+Não presuma que o projeto esteja completo porque os PDFs foram processados.
+
+Compare o conteúdo oficial com o código e os dados existentes. Identifique as lacunas reais e apresente um plano organizado.
+
+Depois da aprovação do planejamento, comece a implementação por ciclos, mantendo testes, documentação e continuidade no GitHub.
+
+Prioridade absoluta: fidelidade às regras oficiais, funcionamento mecânico real, integridade dos dados e qualidade técnica.
+
+É preferível implementar corretamente um sistema por vez do que apresentar dezenas de funcionalidades incompletas.
+
+O objetivo não é apenas fazer o aplicativo parecer pronto. É construir um CYBERPUNK RED que realmente funcione como um sistema completo de RPG solo.

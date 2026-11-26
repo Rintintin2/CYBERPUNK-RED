@@ -6,25 +6,36 @@ import androidx.lifecycle.viewModelScope
 import com.example.core.ai.AiProviderMode
 import com.example.core.ai.GameMasterGateway
 import com.example.core.ai.GmContextSnapshot
+import com.example.core.rules.AgentAccessMode
+import com.example.core.rules.AgentHackResult
+import com.example.core.rules.AgentQualityTier
+import com.example.core.rules.BrainwasherResult
 import com.example.core.rules.CharacterCalculator
 import com.example.core.rules.CharacterStats
 import com.example.core.rules.CriticalMarker
+import com.example.core.rules.CyberwareSlotSummary
+import com.example.core.rules.CyberwareValidator
 import com.example.core.rules.DamageApplicationResult
 import com.example.core.rules.DeathSaveResult
 import com.example.core.rules.DatepathRollResult
 import com.example.core.rules.DerivedCharacterMetrics
 import com.example.core.rules.DiceEngine
+import com.example.core.rules.EconomyEngine
 import com.example.core.rules.EncounterRollResult
 import com.example.core.rules.EncounterTimeOfDay
+import com.example.core.rules.FlashOfLuckTier
 import com.example.core.rules.GeneratedNightMarket
 import com.example.core.rules.HustleRollResult
+import com.example.core.rules.HusToolResult
 import com.example.core.rules.InterfaceCheckResult
 import com.example.core.rules.NetArchDifficulty
 import com.example.core.rules.NetrunningEngine
 import com.example.core.rules.NightMarketOffer
 import com.example.core.rules.OfficialDlcSoloSystems
 import com.example.core.rules.OfficialEncountersAndLoreCatalog
+import com.example.core.rules.OfficialNightCityAtlasCatalog
 import com.example.core.rules.OfficialNpcSpec
+import com.example.core.rules.OfficialSinglePlayerPlusCatalog
 import com.example.core.rules.OfficialSkillCatalog
 import com.example.core.rules.OfficialStreetGenerators
 import com.example.core.rules.OfficialTalesAndHookBookCatalog
@@ -40,8 +51,16 @@ import com.example.core.rules.SalvageWorthTier
 import com.example.core.rules.SkillCheckEngine
 import com.example.core.rules.SkillCheckRequest
 import com.example.core.rules.SkillCheckResult
+import com.example.core.rules.SoloNpcPersonalityBundle
+import com.example.core.rules.SoloOracleYesNoResult
+import com.example.core.rules.SoloPlusRollResult
+import com.example.core.rules.StealthNetContestResult
+import com.example.core.rules.StreetratPregenSpec
+import com.example.core.rules.TherapyOutcome
+import com.example.core.rules.TherapyType
 import com.example.core.rules.WeatherRollResult
 import com.example.core.rules.WeatherSeason
+import com.example.data.repository.CyberwareInstallOutcome
 import com.example.data.local.entity.CampaignEntity
 import com.example.data.local.entity.CampaignSaveEntity
 import com.example.data.local.entity.CharacterEntity
@@ -106,6 +125,15 @@ data class MainUiState(
     val lastDatepathResult: DatepathRollResult? = null,
     val lastPlotHook: PlotHookSpec? = null,
     val lastRcVendorPrompt: String? = null,
+    val lastSoloPlusRoll: SoloPlusRollResult? = null,
+    val lastNpcPersonalityBundle: SoloNpcPersonalityBundle? = null,
+    val lastSoloOracleResult: SoloOracleYesNoResult? = null,
+    val lastStealthNetResult: StealthNetContestResult? = null,
+    val lastAgentHackResult: AgentHackResult? = null,
+    val lastHusToolResult: HusToolResult? = null,
+    val cyberwareSlotSummary: CyberwareSlotSummary = CyberwareSlotSummary(),
+    val lastBrainwasherResult: BrainwasherResult? = null,
+    val lastTherapyOutcome: TherapyOutcome? = null,
     val statusBannerMessage: String? = null,
     val aiProviderMode: AiProviderMode = AiProviderMode.OFFLINE_DETERMINISTIC,
     val isProcessingAction: Boolean = false
@@ -139,6 +167,14 @@ private data class TransientResultBundle(
     val lastDatepathResult: DatepathRollResult? = null,
     val lastPlotHook: PlotHookSpec? = null,
     val lastRcVendorPrompt: String? = null,
+    val lastSoloPlusRoll: SoloPlusRollResult? = null,
+    val lastNpcPersonalityBundle: SoloNpcPersonalityBundle? = null,
+    val lastSoloOracleResult: SoloOracleYesNoResult? = null,
+    val lastStealthNetResult: StealthNetContestResult? = null,
+    val lastAgentHackResult: AgentHackResult? = null,
+    val lastHusToolResult: HusToolResult? = null,
+    val lastBrainwasherResult: BrainwasherResult? = null,
+    val lastTherapyOutcome: TherapyOutcome? = null,
     val statusBannerMessage: String? = null,
     val isProcessingAction: Boolean = false
 )
@@ -248,14 +284,18 @@ class MainViewModel(
         val primary = systems.primaryCharacter
         val installedWithHl = systems.cyberware.filter { it.installed && it.humanityCost > 0 }
         val maxHumanityReduction = installedWithHl.sumOf { cw ->
-            if (cw.slotArea.contains("Borgware", ignoreCase = true)) 4 else 2
+            if (CyberwareValidator.isBorgware(cw)) 4 else 2
         }
+        val slotSummary = CyberwareValidator.computeSlotSummary(systems.cyberware)
         val derived = primary?.let {
             CharacterCalculator.computeDerivedMetrics(
                 stats = it.toCharacterStats(),
                 currentHp = it.currentHp,
                 totalHumanityLoss = it.humanityLoss,
-                maxHumanityReduction = maxHumanityReduction
+                maxHumanityReduction = maxHumanityReduction,
+                headArmorSp = it.headArmorSp,
+                bodyArmorSp = it.bodyArmorSp,
+                installedCyberware = systems.cyberware
             )
         }
 
@@ -290,6 +330,15 @@ class MainViewModel(
             lastDatepathResult = transient.lastDatepathResult,
             lastPlotHook = transient.lastPlotHook,
             lastRcVendorPrompt = transient.lastRcVendorPrompt,
+            lastSoloPlusRoll = transient.lastSoloPlusRoll,
+            lastNpcPersonalityBundle = transient.lastNpcPersonalityBundle,
+            lastSoloOracleResult = transient.lastSoloOracleResult,
+            lastStealthNetResult = transient.lastStealthNetResult,
+            lastAgentHackResult = transient.lastAgentHackResult,
+            lastHusToolResult = transient.lastHusToolResult,
+            cyberwareSlotSummary = slotSummary,
+            lastBrainwasherResult = transient.lastBrainwasherResult,
+            lastTherapyOutcome = transient.lastTherapyOutcome,
             statusBannerMessage = transient.statusBannerMessage,
             aiProviderMode = gameMasterGateway.providerMode,
             isProcessingAction = transient.isProcessingAction
@@ -322,6 +371,17 @@ class MainViewModel(
                 startingEurodollars = startingEb
             )
             setBanner("Campanha \"$title\" criada e ativada.")
+        }
+    }
+
+    fun createCampaignFromPregen(
+        title: String,
+        settingNotes: String,
+        pregen: StreetratPregenSpec
+    ) {
+        viewModelScope.launch {
+            campaignRepository.createCampaignFromPregen(title, settingNotes, pregen)
+            setBanner("Campanha com ${pregen.handle} (${pregen.role.displayNamePt}) criada!")
         }
     }
 
@@ -452,11 +512,23 @@ class MainViewModel(
     }
 
     fun installCyberware(name: String, slotArea: String, humanityCost: Int, notes: String) {
+        val campaign = uiState.value.activeCampaign ?: return
         val char = uiState.value.primaryCharacter ?: return
         if (name.isBlank()) return
         viewModelScope.launch {
-            characterRepository.installCyberware(char, name, slotArea, humanityCost, notes)
-            setBanner("Cyberware \"$name\" instalado (-$humanityCost Humanidade).")
+            when (val res = characterRepository.installCyberware(char, name, slotArea, humanityCost, notes)) {
+                is CyberwareInstallOutcome.Blocked -> setBanner(res.reasonPt)
+                is CyberwareInstallOutcome.Installed -> {
+                    sessionRepository.addJournalEntry(
+                        campaign = campaign,
+                        entryType = JournalEntryType.SYSTEM_EVENT,
+                        speakerLabel = "Cyberware",
+                        bodyText = "${char.handle} instalou \"$name\" ($slotArea, -$humanityCost HL). COR efetivo: ${res.effectiveBody}, PV Máx: ${res.newMaxHp}."
+                    )
+                    val warn = if (res.warningsPt.isNotEmpty()) " (${res.warningsPt.first()})" else ""
+                    setBanner("Cyberware \"$name\" instalado (-$humanityCost HL)$warn.")
+                }
+            }
         }
     }
 
@@ -489,12 +561,18 @@ class MainViewModel(
         val derived = state.derivedMetrics ?: return
 
         val actualLuck = luckToSpend.coerceIn(0, char.luckCurrent)
-        val statVal = char.toCharacterStats().getStat(
-            stat = stat,
-            currentEmpathy = derived.currentEmpathy,
-            currentLuck = char.luckCurrent
-        )
-        val effectiveMod = modifier + derived.woundPenalty
+        val statVal = if (stat == RedStat.BODY) {
+            derived.effectiveBody
+        } else {
+            char.toCharacterStats().getStat(
+                stat = stat,
+                currentEmpathy = derived.currentEmpathy,
+                currentLuck = char.luckCurrent
+            )
+        }
+        val woundMod = derived.effectiveWoundPenalty
+        val armorMod = derived.armorStatPenalty(stat)
+        val effectiveMod = modifier + woundMod + armorMod
 
         val request = SkillCheckRequest(
             stat = stat,
@@ -519,7 +597,9 @@ class MainViewModel(
             val rollBreakdown = buildString {
                 append("${stat.code}($statVal) + $skillName($skillLevel)")
                 if (actualLuck > 0) append(" + SOR($actualLuck)")
-                if (effectiveMod != 0) append(" + Mod($effectiveMod)")
+                if (modifier != 0) append(" + Mod($modifier)")
+                if (woundMod != 0) append(" + Ferim($woundMod)")
+                if (armorMod != 0) append(" + Armad($armorMod)")
                 append(" + 1d10(${result.roll.netDieTotal})")
                 when (result.roll.marker) {
                     CriticalMarker.CRITICAL_SUCCESS -> append(" [CRÍTICO 10+${result.roll.secondaryDie}]")
@@ -1141,6 +1221,351 @@ class MainViewModel(
             )
             transientResultsFlow.value = transientResultsFlow.value.copy(lastRcVendorPrompt = vendor)
             setBanner("Vendedor RC rolado.")
+        }
+    }
+
+    // --- Atlas, Going Quiet, Agents, Single Player+ & Danger Gal Dossier ---
+    fun setCampaignDistrict(districtCode: String) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val district = OfficialNightCityAtlasCatalog.findDistrictByCode(districtCode) ?: return
+        viewModelScope.launch {
+            sessionRepository.setCurrentDistrict(campaign, district.code)
+            setBanner("Distrito atual: ${district.code} — ${district.namePt}")
+        }
+    }
+
+    fun rollAtlasDistrictHook(districtCode: String) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val district = OfficialNightCityAtlasCatalog.findDistrictByCode(districtCode) ?: return
+        val location = district.locations.randomOrNull()
+        val locText = location?.let {
+            val extra = if (it.notePt.isNotBlank()) ": ${it.notePt}" else ""
+            "${it.code} ${it.name}$extra"
+        } ?: district.summaryPt
+        viewModelScope.launch {
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.SYSTEM_EVENT,
+                speakerLabel = "Atlas (${district.code} • ${district.namePt})",
+                bodyText = "Local em foco: $locText",
+                deterministicDetail = "Gangues ativas: ${district.gangsPresent.joinToString(", ")} | Segurança: ${district.securityProvider}"
+            )
+            setBanner("Gancho em ${district.code}: ${location?.name ?: district.namePt}")
+        }
+    }
+
+    fun triggerFlashOfLuck(tier: FlashOfLuckTier, customReason: String) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val char = uiState.value.primaryCharacter ?: return
+        if (campaign.flashOfLuckBeatUsed) {
+            setBanner("Limite de Beat atingido: já usou 1 Flash of Luck neste Beat.")
+            return
+        }
+        if (campaign.flashOfLuckMissionUses >= 3) {
+            setBanner("Limite de Missão atingido (3/3 Flashes usados).")
+            return
+        }
+        if (char.luckCurrent < tier.luckCost) {
+            setBanner("Sorte insuficiente: exige ${tier.luckCost} SOR (atual: ${char.luckCurrent}).")
+            return
+        }
+        val reason = customReason.trim().ifEmpty { tier.labelPt }
+        viewModelScope.launch {
+            val newLuck = char.luckCurrent - tier.luckCost
+            characterRepository.updateCharacter(char.copy(luckCurrent = newLuck))
+            val updatedCamp = sessionRepository.updateCampaignFlashOfLuck(
+                campaign = campaign,
+                beatUsed = true,
+                missionUses = campaign.flashOfLuckMissionUses + 1
+            )
+            sessionRepository.addJournalEntry(
+                campaign = updatedCamp,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "Flash of Luck (${tier.luckCost} SOR)",
+                bodyText = "Going Quiet acionado (${tier.labelPt}): $reason",
+                deterministicDetail = "SOR restante: $newLuck/${char.luckMax} • Beat: 1/1 • Missão: ${updatedCamp.flashOfLuckMissionUses}/3"
+            )
+            setBanner("Flash of Luck ativo (-${tier.luckCost} SOR). Beat 1/1 • Missão ${updatedCamp.flashOfLuckMissionUses}/3.")
+        }
+    }
+
+    fun vetoRefundFlashOfLuck(tier: FlashOfLuckTier) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val char = uiState.value.primaryCharacter ?: return
+        if (!campaign.flashOfLuckBeatUsed && campaign.flashOfLuckMissionUses == 0) {
+            setBanner("Nenhum Flash of Luck recente para reembolsar.")
+            return
+        }
+        viewModelScope.launch {
+            val refundedLuck = (char.luckCurrent + tier.luckCost).coerceAtMost(char.luckMax)
+            characterRepository.updateCharacter(char.copy(luckCurrent = refundedLuck))
+            val updatedCamp = sessionRepository.updateCampaignFlashOfLuck(
+                campaign = campaign,
+                beatUsed = false,
+                missionUses = (campaign.flashOfLuckMissionUses - 1).coerceAtLeast(0)
+            )
+            sessionRepository.addJournalEntry(
+                campaign = updatedCamp,
+                entryType = JournalEntryType.SYSTEM_EVENT,
+                speakerLabel = "Flash Vetado (Reembolso)",
+                bodyText = "Oráculo/Mestre vetou Flash (${tier.labelPt}): +${tier.luckCost} SOR devolvida (atual: $refundedLuck)."
+            )
+            setBanner("Flash vetado: +${tier.luckCost} SOR reembolsada.")
+        }
+    }
+
+    fun resetFlashOfLuckBeat() {
+        val campaign = uiState.value.activeCampaign ?: return
+        viewModelScope.launch {
+            sessionRepository.updateCampaignFlashOfLuck(
+                campaign = campaign,
+                beatUsed = false,
+                missionUses = campaign.flashOfLuckMissionUses
+            )
+            setBanner("Novo Beat iniciado: Flash of Luck liberado.")
+        }
+    }
+
+    fun resetFlashOfLuckMission() {
+        val campaign = uiState.value.activeCampaign ?: return
+        viewModelScope.launch {
+            sessionRepository.updateCampaignFlashOfLuck(
+                campaign = campaign,
+                beatUsed = false,
+                missionUses = 0
+            )
+            setBanner("Nova Missão: contador Flash of Luck zerado (0/3).")
+        }
+    }
+
+    fun runQuietlyJackIn(watcherInterface: Int) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val char = uiState.value.primaryCharacter ?: return
+        val interfaceRank = if (char.role == RedRole.NETRUNNER) char.roleRank else 1
+        val res = netrunningEngine.quietlyJackIn(interfaceRank, watcherInterface)
+        viewModelScope.launch {
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "Stealth Netrunning",
+                bodyText = "${res.actionLabelPt}: ${if (res.runnerStealthMaintained) "FURTIVO (Sem alerta)" else "DETECTADO pelo Watcher!"}",
+                deterministicDetail = res.breakdownPt
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastStealthNetResult = res)
+        }
+    }
+
+    fun runStealthVsBlackIce(cloakBonus: Int, blackIcePerception: Int) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val char = uiState.value.primaryCharacter ?: return
+        val interfaceRank = if (char.role == RedRole.NETRUNNER) char.roleRank else 1
+        val res = netrunningEngine.evadeBlackIceInStealth(interfaceRank, cloakBonus, blackIcePerception)
+        viewModelScope.launch {
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "Stealth Netrunning",
+                bodyText = "${res.actionLabelPt}: ${if (res.runnerStealthMaintained) "IGNORADO pelo Black ICE" else "ICE ENTROU NA INICIATIVA!"}",
+                deterministicDetail = res.breakdownPt
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastStealthNetResult = res)
+        }
+    }
+
+    fun runStealthVsWatcher(cloakBonus: Int, watcherInterface: Int, watcherPathfinder: Int) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val char = uiState.value.primaryCharacter ?: return
+        val interfaceRank = if (char.role == RedRole.NETRUNNER) char.roleRank else 1
+        val res = netrunningEngine.contestWatcherVsStealth(interfaceRank, cloakBonus, watcherInterface, watcherPathfinder)
+        viewModelScope.launch {
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "Stealth Netrunning",
+                bodyText = "${res.actionLabelPt}: ${if (res.runnerStealthMaintained) "OCULTO (Stealth mantido)" else "DESCOBERTO pelo Watcher!"}",
+                deterministicDetail = res.breakdownPt
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastStealthNetResult = res)
+        }
+    }
+
+    fun runAgentHack(
+        mode: AgentAccessMode,
+        quality: AgentQualityTier,
+        hasSocialBonus: Boolean,
+        useCrunchWhistle: Boolean
+    ) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val char = uiState.value.primaryCharacter ?: return
+        val elecSkill = uiState.value.skills.firstOrNull {
+            it.name.contains("Eletrônica", ignoreCase = true) || it.name.contains("Electronics", ignoreCase = true)
+        }?.level ?: 0
+        val elecBase = char.technique + elecSkill
+        val crunchBonus = if (useCrunchWhistle && char.role == RedRole.NETRUNNER) char.roleRank else 0
+        val res = netrunningEngine.hackAgent(elecBase, mode, quality, hasSocialBonus, crunchBonus)
+        viewModelScope.launch {
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "Agent Hacking (${quality.labelPt})",
+                bodyText = if (res.succeeded) "AGENT INVADIDO (1 comando por até 24h)" else "INVASÃO FALHOU (alvo alertado em 30s!)",
+                deterministicDetail = res.breakdownPt
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastAgentHackResult = res)
+        }
+    }
+
+    fun runHusToolApp() {
+        val campaign = uiState.value.activeCampaign ?: return
+        val res = netrunningEngine.rollHusTool()
+        viewModelScope.launch {
+            if (res.earnedEb > 0) {
+                campaignRepository.updateCampaign(campaign.copy(eurodollars = campaign.eurodollars + res.earnedEb))
+            }
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "App: HusTool",
+                bodyText = res.summaryPt
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastHusToolResult = res)
+            setBanner(res.summaryPt)
+        }
+    }
+
+    fun runBrainwasherApp() {
+        val campaign = uiState.value.activeCampaign ?: return
+        val char = uiState.value.primaryCharacter
+        val res = netrunningEngine.rollBrainwasher()
+        viewModelScope.launch {
+            if (char != null) {
+                characterRepository.updateCharacter(
+                    char.copy(pendingTherapyDiceDelta = res.therapyDiceDelta)
+                )
+            }
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "App: Brainwasher",
+                bodyText = res.summaryPt
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastBrainwasherResult = res)
+            setBanner(res.summaryPt)
+        }
+    }
+
+    fun runHumanityTherapy(
+        therapyType: TherapyType,
+        useClinicService: Boolean,
+        payWithEb: Boolean
+    ) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val char = uiState.value.primaryCharacter ?: return
+        val cost = if (useClinicService) therapyType.clinicCostEb else therapyType.selfMaterialsEb
+
+        viewModelScope.launch {
+            if (payWithEb && cost > 0) {
+                when (val purchase = EconomyEngine.attemptPurchase(campaign.eurodollars, cost)) {
+                    is PurchaseOutcome.InsufficientFunds -> {
+                        setBanner("Eurodólares insuficientes para ${therapyType.labelPt}: precisa ${purchase.requiredEurodollars} eb (saldo: ${purchase.currentEurodollars} eb).")
+                        return@launch
+                    }
+                    is PurchaseOutcome.Approved -> {
+                        campaignRepository.updateCampaign(
+                            campaign.copy(
+                                eurodollars = purchase.remainingEurodollars,
+                                updatedAt = System.currentTimeMillis()
+                            )
+                        )
+                    }
+                }
+            }
+
+            val medTechSkill = uiState.value.skills.firstOrNull {
+                it.name.contains("Tecnologia Médica", ignoreCase = true) ||
+                    it.name.contains("Medical Tech", ignoreCase = true)
+            }?.level ?: 0
+            val medTechBase = char.technique + medTechSkill
+
+            val outcome = characterRepository.performTherapy(
+                character = char,
+                therapyType = therapyType,
+                useClinicService = useClinicService,
+                medTechBase = medTechBase,
+                diceEngine = part2DiceEngine
+            )
+
+            campaignRepository.advanceTime(campaign.copy(eurodollars = if (payWithEb) (campaign.eurodollars - cost).coerceAtLeast(0) else campaign.eurodollars), 7 * 24)
+
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "Terapia (${if (useClinicService) "Clínica" else "Medtech"})",
+                bodyText = outcome.summaryPt,
+                deterministicDetail = "Custo: ${if (payWithEb) "${cost}eb" else "0eb (cortesia)"} • 7 dias avançados"
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastTherapyOutcome = outcome)
+            setBanner(outcome.summaryPt)
+        }
+    }
+
+    fun rollSoloPlusTable(tableId: String) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val res = OfficialSinglePlayerPlusCatalog.rollTable(tableId, part2DiceEngine)
+        viewModelScope.launch {
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "Solo+ • ${res.tableTitlePt}",
+                bodyText = res.resultTextPt,
+                deterministicDetail = "${res.dieLabel} = ${res.rollValue}"
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastSoloPlusRoll = res)
+        }
+    }
+
+    fun rollSoloNpcPersonality() {
+        val campaign = uiState.value.activeCampaign ?: return
+        val bundle = OfficialSinglePlayerPlusCatalog.rollNpcPersonalityBundle(part2DiceEngine)
+        viewModelScope.launch {
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "Solo+ • Perfil NPC",
+                bodyText = "Motivação (${bundle.motivationRoll}): ${bundle.motivationPt}\nCompetência (${bundle.competenceRoll}): ${bundle.competencePt}\nAgressividade (${bundle.aggressionRoll}): ${bundle.aggressionPt}"
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastNpcPersonalityBundle = bundle)
+        }
+    }
+
+    fun askSoloOracleYesNo(question: String, oddsLabel: String, targetDv: Int) {
+        val campaign = uiState.value.activeCampaign ?: return
+        val res = OfficialSinglePlayerPlusCatalog.askSoloOracleYesNo(question, oddsLabel, targetDv, part2DiceEngine)
+        viewModelScope.launch {
+            sessionRepository.addJournalEntry(
+                campaign = campaign,
+                entryType = JournalEntryType.DETERMINISTIC_ROLL,
+                speakerLabel = "Oráculo Solo (${res.oddsLabelPt})",
+                bodyText = "\"${res.questionPt}\" -> ${res.answerPt} (1d10=${res.roll1d10} vs DV ${res.targetDv})" +
+                    (res.twistPt?.let { "\n$it" } ?: "")
+            )
+            transientResultsFlow.value = transientResultsFlow.value.copy(lastSoloOracleResult = res)
+        }
+    }
+
+    fun deployTheIncidentGig() {
+        val campaign = uiState.value.activeCampaign ?: return
+        viewModelScope.launch {
+            sessionRepository.deployTheIncidentAdventure(campaign)
+            setBanner("Gig 'The Incident' implantada: 10 Beats, NPCs e Bodega NET!")
+        }
+    }
+
+    fun importDgdFactionPack(factionId: String) {
+        val campaign = uiState.value.activeCampaign ?: return
+        viewModelScope.launch {
+            val count = sessionRepository.importDgdFaction(campaign, factionId)
+            setBanner("Facção DGD e $count NPCs importados para a campanha.")
         }
     }
 

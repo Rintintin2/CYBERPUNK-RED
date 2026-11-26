@@ -2,11 +2,17 @@ package com.example.data.repository
 
 import com.example.core.rules.CharacterCalculator
 import com.example.core.rules.CombatEngine
+import com.example.core.rules.CyberwareValidationResult
+import com.example.core.rules.CyberwareValidator
 import com.example.core.rules.DamageApplicationResult
 import com.example.core.rules.DeathSaveResult
+import com.example.core.rules.DiceEngine
 import com.example.core.rules.OfficialEconomyAndProgression
 import com.example.core.rules.RedRole
 import com.example.core.rules.RedStat
+import com.example.core.rules.TherapyEngine
+import com.example.core.rules.TherapyOutcome
+import com.example.core.rules.TherapyType
 import com.example.data.local.dao.CharacterDao
 import com.example.data.local.entity.CharacterEntity
 import com.example.data.local.entity.CharacterSkillEntity
@@ -19,9 +25,21 @@ sealed class IpSpendOutcome {
     data object MaxLevelReached : IpSpendOutcome()
 }
 
+sealed class CyberwareInstallOutcome {
+    data class Installed(
+        val newHumanityLoss: Int,
+        val effectiveBody: Int,
+        val newMaxHp: Int,
+        val warningsPt: List<String> = emptyList()
+    ) : CyberwareInstallOutcome()
+
+    data class Blocked(val reasonPt: String) : CyberwareInstallOutcome()
+}
+
 class CharacterRepository(
     private val characterDao: CharacterDao,
-    private val combatEngine: CombatEngine
+    private val combatEngine: CombatEngine,
+    private val therapyEngine: TherapyEngine = TherapyEngine()
 ) {
     fun observeCharacters(campaignId: Long): Flow<List<CharacterEntity>> =
         characterDao.observeCharactersForCampaign(campaignId)
@@ -66,7 +84,9 @@ class CharacterRepository(
     }
 
     suspend fun updateCharacter(character: CharacterEntity) {
-        val maxHp = CharacterCalculator.calculateMaxHp(character.body, character.willpower)
+        val cyberware = characterDao.getCyberwareForCharacter(character.id)
+        val effectiveBody = CyberwareValidator.computeEffectiveBody(character.body, cyberware)
+        val maxHp = CharacterCalculator.calculateMaxHp(effectiveBody, character.willpower)
         val clampedHp = character.currentHp.coerceIn(0, maxHp)
         val clampedLuck = character.luckCurrent.coerceIn(0, character.luckMax)
         characterDao.updateCharacter(
@@ -98,7 +118,9 @@ class CharacterRepository(
     }
 
     suspend fun adjustHp(character: CharacterEntity, delta: Int) {
-        val maxHp = CharacterCalculator.calculateMaxHp(character.body, character.willpower)
+        val cyberware = characterDao.getCyberwareForCharacter(character.id)
+        val effectiveBody = CyberwareValidator.computeEffectiveBody(character.body, cyberware)
+        val maxHp = CharacterCalculator.calculateMaxHp(effectiveBody, character.willpower)
         val newHp = (character.currentHp + delta).coerceIn(0, maxHp)
         characterDao.updateCharacter(
             character.copy(currentHp = newHp, updatedAt = System.currentTimeMillis())
@@ -111,7 +133,9 @@ class CharacterRepository(
         isHeadshot: Boolean,
         ignoreHalfArmor: Boolean = false
     ): DamageApplicationResult {
-        val maxHp = CharacterCalculator.calculateMaxHp(character.body, character.willpower)
+        val cyberware = characterDao.getCyberwareForCharacter(character.id)
+        val effectiveBody = CyberwareValidator.computeEffectiveBody(character.body, cyberware)
+        val maxHp = CharacterCalculator.calculateMaxHp(effectiveBody, character.willpower)
         val targetSp = if (isHeadshot) character.headArmorSp else character.bodyArmorSp
         val result = combatEngine.applyWeaponDamage(
             damageDiceCount = damageDiceCount,
@@ -131,8 +155,10 @@ class CharacterRepository(
     }
 
     suspend fun rollDeathSaveForCharacter(character: CharacterEntity): DeathSaveResult {
+        val cyberware = characterDao.getCyberwareForCharacter(character.id)
+        val effectiveBody = CyberwareValidator.computeEffectiveBody(character.body, cyberware)
         val result = combatEngine.rollDeathSave(
-            bodyStat = character.body,
+            bodyStat = effectiveBody,
             currentDeathSavePenalty = character.deathSaveMod
         )
         if (result.survived) {
@@ -206,24 +232,54 @@ class CharacterRepository(
         name: String,
         slotArea: String,
         humanityCost: Int,
-        notes: String
-    ) {
+        notes: String,
+        bypassValidation: Boolean = false
+    ): CyberwareInstallOutcome {
+        val existing = characterDao.getCyberwareForCharacter(character.id)
+        val warnings = if (!bypassValidation) {
+            when (val validation = CyberwareValidator.validateInstallation(character.body, existing, name, slotArea)) {
+                is CyberwareValidationResult.Blocked -> return CyberwareInstallOutcome.Blocked(validation.reasonPt)
+                is CyberwareValidationResult.Valid -> validation.warningsPt
+            }
+        } else {
+            emptyList()
+        }
+
         val cost = humanityCost.coerceAtLeast(0)
-        characterDao.insertCyberware(
-            CyberwareEntity(
-                characterId = character.id,
-                name = name.trim(),
-                slotArea = slotArea.trim(),
-                humanityCost = cost,
-                installed = true,
-                notes = notes.trim()
-            )
+        val newEntity = CyberwareEntity(
+            characterId = character.id,
+            name = name.trim(),
+            slotArea = slotArea.trim(),
+            humanityCost = cost,
+            installed = true,
+            notes = notes.trim()
         )
+        val oldEffectiveBody = CyberwareValidator.computeEffectiveBody(character.body, existing)
+        val oldMaxHp = CharacterCalculator.calculateMaxHp(oldEffectiveBody, character.willpower)
+
+        characterDao.insertCyberware(newEntity)
+        val updatedList = existing + newEntity
+        val newEffectiveBody = CyberwareValidator.computeEffectiveBody(character.body, updatedList)
+        val newMaxHp = CharacterCalculator.calculateMaxHp(newEffectiveBody, character.willpower)
+        val adjustedHp = if (character.currentHp == oldMaxHp) {
+            newMaxHp
+        } else {
+            character.currentHp.coerceIn(0, newMaxHp)
+        }
+        val newHumanityLoss = character.humanityLoss + cost
+
         characterDao.updateCharacter(
             character.copy(
-                humanityLoss = character.humanityLoss + cost,
+                humanityLoss = newHumanityLoss,
+                currentHp = adjustedHp,
                 updatedAt = System.currentTimeMillis()
             )
+        )
+        return CyberwareInstallOutcome.Installed(
+            newHumanityLoss = newHumanityLoss,
+            effectiveBody = newEffectiveBody,
+            newMaxHp = newMaxHp,
+            warningsPt = warnings
         )
     }
 
@@ -233,14 +289,22 @@ class CharacterRepository(
         allCyberware: List<CyberwareEntity>
     ) {
         val toggled = cyberware.copy(installed = !cyberware.installed)
+        val oldBody = CyberwareValidator.computeEffectiveBody(character.body, allCyberware)
+        val oldMaxHp = CharacterCalculator.calculateMaxHp(oldBody, character.willpower)
+
         characterDao.updateCyberware(toggled)
-        val totalLoss = allCyberware
-            .map { if (it.id == cyberware.id) toggled else it }
+        val updatedList = allCyberware.map { if (it.id == cyberware.id) toggled else it }
+        val newBody = CyberwareValidator.computeEffectiveBody(character.body, updatedList)
+        val newMaxHp = CharacterCalculator.calculateMaxHp(newBody, character.willpower)
+        val adjustedHp = if (character.currentHp == oldMaxHp) newMaxHp else character.currentHp.coerceIn(0, newMaxHp)
+
+        val totalLoss = updatedList
             .filter { it.installed }
             .sumOf { it.humanityCost }
         characterDao.updateCharacter(
             character.copy(
                 humanityLoss = totalLoss,
+                currentHp = adjustedHp,
                 updatedAt = System.currentTimeMillis()
             )
         )
@@ -251,15 +315,57 @@ class CharacterRepository(
         cyberware: CyberwareEntity,
         allCyberware: List<CyberwareEntity>
     ) {
+        val oldBody = CyberwareValidator.computeEffectiveBody(character.body, allCyberware)
+        val oldMaxHp = CharacterCalculator.calculateMaxHp(oldBody, character.willpower)
+
         characterDao.deleteCyberwareById(cyberware.id)
-        val totalLoss = allCyberware
-            .filter { it.id != cyberware.id && it.installed }
+        val remainingList = allCyberware.filter { it.id != cyberware.id }
+        val newBody = CyberwareValidator.computeEffectiveBody(character.body, remainingList)
+        val newMaxHp = CharacterCalculator.calculateMaxHp(newBody, character.willpower)
+        val adjustedHp = if (character.currentHp == oldMaxHp) newMaxHp else character.currentHp.coerceIn(0, newMaxHp)
+
+        val totalLoss = remainingList
+            .filter { it.installed }
             .sumOf { it.humanityCost }
         characterDao.updateCharacter(
             character.copy(
                 humanityLoss = totalLoss,
+                currentHp = adjustedHp,
                 updatedAt = System.currentTimeMillis()
             )
         )
+    }
+
+    suspend fun performTherapy(
+        character: CharacterEntity,
+        therapyType: TherapyType,
+        useClinicService: Boolean,
+        medTechBase: Int = 0,
+        diceEngine: DiceEngine? = null
+    ): TherapyOutcome {
+        val cyberware = characterDao.getCyberwareForCharacter(character.id)
+        val maxHumanityReduction = cyberware
+            .filter { it.installed && it.humanityCost > 0 }
+            .sumOf { if (CyberwareValidator.isBorgware(it)) 4 else 2 }
+
+        val engine = if (diceEngine != null) TherapyEngine(diceEngine) else therapyEngine
+        val outcome = engine.performTherapy(
+            therapyType = therapyType,
+            empathyMax = character.empathyMax,
+            currentHumanityLoss = character.humanityLoss,
+            maxHumanityReduction = maxHumanityReduction,
+            brainwasherDiceDelta = character.pendingTherapyDiceDelta,
+            useClinicService = useClinicService,
+            medTechBase = medTechBase
+        )
+
+        characterDao.updateCharacter(
+            character.copy(
+                humanityLoss = outcome.humanityLossAfter,
+                pendingTherapyDiceDelta = if (therapyType != TherapyType.ADDICTION) 0 else character.pendingTherapyDiceDelta,
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        return outcome
     }
 }

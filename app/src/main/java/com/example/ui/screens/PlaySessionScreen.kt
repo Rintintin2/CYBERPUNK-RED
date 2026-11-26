@@ -16,8 +16,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.ClearAll
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SmartToy
@@ -46,8 +48,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.core.rules.EncounterTimeOfDay
+import com.example.core.rules.FlashOfLuckTier
 import com.example.core.rules.OfficialNpcSpec
-import com.example.core.rules.PlotHookSpec
 import com.example.core.rules.RedStat
 import com.example.core.rules.SalvageCategory
 import com.example.core.rules.SalvageWorthTier
@@ -84,6 +86,14 @@ fun PlaySessionScreen(
     onRollDatepath: () -> Unit = {},
     onRollPlotHook: (String?) -> Unit = {},
     onRollRcVendor: () -> Unit = {},
+    onOpenAtlas: () -> Unit = {},
+    onTriggerFlashOfLuck: (FlashOfLuckTier, String) -> Unit = { _, _ -> },
+    onVetoRefundFlash: (FlashOfLuckTier) -> Unit = {},
+    onResetFlashBeat: () -> Unit = {},
+    onResetFlashMission: () -> Unit = {},
+    onRollSoloPlusTable: (String) -> Unit = {},
+    onRollNpcPersonality: () -> Unit = {},
+    onAskSoloOracle: (String, String, Int) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val activeCampaign = uiState.activeCampaign
@@ -107,6 +117,7 @@ fun PlaySessionScreen(
     var showDamageDialog by remember { mutableStateOf(false) }
     var showAddCombatantDialog by remember { mutableStateOf(false) }
     var showSoloGeneratorsDialog by remember { mutableStateOf(false) }
+    var showFlashDialog by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()) {
         // Top GM & Deterministic Controls Strip
@@ -169,13 +180,40 @@ fun PlaySessionScreen(
                 }
             }
             Spacer(Modifier.height(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onOpenAtlas,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("session_open_atlas_button")
+                ) {
+                    Icon(Icons.Filled.Explore, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Atlas (${activeCampaign.currentDistrictCode})", maxLines = 1)
+                }
+                OutlinedButton(
+                    onClick = { showFlashDialog = true },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("session_flash_luck_button")
+                ) {
+                    Icon(Icons.Filled.AutoFixHigh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    val beatTag = if (activeCampaign.flashOfLuckBeatUsed) "1/1" else "Livre"
+                    Text("Flash ($beatTag • ${activeCampaign.flashOfLuckMissionUses}/3)", maxLines = 1)
+                }
+            }
+            Spacer(Modifier.height(6.dp))
             OutlinedButton(
                 onClick = { showSoloGeneratorsDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("open_solo_generators_button")
             ) {
-                Text("Gerador Solo: Encontros d100 • Hostis • Rua")
+                Text("Gerador Solo+: Oráculo • 22 Tab • Hostis • Rua")
             }
         }
 
@@ -376,6 +414,9 @@ fun PlaySessionScreen(
             lastDatepathResult = uiState.lastDatepathResult,
             lastPlotHook = uiState.lastPlotHook,
             lastRcVendorPrompt = uiState.lastRcVendorPrompt,
+            lastSoloPlusRoll = uiState.lastSoloPlusRoll,
+            lastNpcPersonalityBundle = uiState.lastNpcPersonalityBundle,
+            lastSoloOracleResult = uiState.lastSoloOracleResult,
             onRollEncounter = onRollEncounter,
             onSpawnNpc = onSpawnNpc,
             onRollStreetPrompt = onRollStreetPrompt,
@@ -384,7 +425,30 @@ fun PlaySessionScreen(
             onRollDatepath = onRollDatepath,
             onRollPlotHook = onRollPlotHook,
             onRollRcVendor = onRollRcVendor,
+            onRollSoloPlusTable = onRollSoloPlusTable,
+            onRollNpcPersonality = onRollNpcPersonality,
+            onAskSoloOracle = onAskSoloOracle,
             onDismiss = { showSoloGeneratorsDialog = false }
+        )
+    }
+
+    if (showFlashDialog) {
+        FlashOfLuckDialog(
+            luckCurrent = uiState.primaryCharacter?.luckCurrent ?: 0,
+            luckMax = uiState.primaryCharacter?.luckMax ?: 0,
+            beatUsed = activeCampaign.flashOfLuckBeatUsed,
+            missionUses = activeCampaign.flashOfLuckMissionUses,
+            onTrigger = { tier, reason ->
+                onTriggerFlashOfLuck(tier, reason)
+                showFlashDialog = false
+            },
+            onVetoRefund = { tier ->
+                onVetoRefundFlash(tier)
+                showFlashDialog = false
+            },
+            onResetBeat = onResetFlashBeat,
+            onResetMission = onResetFlashMission,
+            onDismiss = { showFlashDialog = false }
         )
     }
 }
@@ -524,5 +588,79 @@ private fun AddCombatantDialog(
             ) { Text("Rolar Inic.") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+    )
+}
+
+@Composable
+private fun FlashOfLuckDialog(
+    luckCurrent: Int,
+    luckMax: Int,
+    beatUsed: Boolean,
+    missionUses: Int,
+    onTrigger: (FlashOfLuckTier, String) -> Unit,
+    onVetoRefund: (FlashOfLuckTier) -> Unit,
+    onResetBeat: () -> Unit,
+    onResetMission: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedTier by remember { mutableStateOf(FlashOfLuckTier.SIMPLE) }
+    var customReason by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Flash of Luck (Going Quiet)") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "SOR: $luckCurrent/$luckMax • Beat: ${if (beatUsed) "1/1 Usado" else "0/1 Livre"} • Missão: $missionUses/3",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = CyberAmber
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    FlashOfLuckTier.entries.forEach { tier ->
+                        FilterChip(
+                            selected = selectedTier == tier,
+                            onClick = { selectedTier = tier },
+                            label = { Text("${tier.labelPt} (-${tier.luckCost} SOR)") }
+                        )
+                    }
+                }
+                Text(selectedTier.summaryPt, style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(
+                    value = customReason,
+                    onValueChange = { customReason = it },
+                    label = { Text("Preparação / Item na cena") },
+                    placeholder = { Text("Ex: Eu já tinha um cartão de acesso clonado") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = onResetBeat, modifier = Modifier.weight(1f)) {
+                        Text("Novo Beat")
+                    }
+                    OutlinedButton(onClick = onResetMission, modifier = Modifier.weight(1f)) {
+                        Text("Nova Missão")
+                    }
+                }
+                OutlinedButton(
+                    onClick = { onVetoRefund(selectedTier) },
+                    enabled = beatUsed || missionUses > 0,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Veto / Reembolsar (+${selectedTier.luckCost} SOR)")
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onTrigger(selectedTier, customReason) },
+                enabled = !beatUsed && missionUses < 3 && luckCurrent >= selectedTier.luckCost,
+                colors = ButtonDefaults.buttonColors(containerColor = CyberCyan),
+                modifier = Modifier.testTag("confirm_flash_of_luck_button")
+            ) {
+                Text("Acionar (-${selectedTier.luckCost} SOR)", color = MaterialTheme.colorScheme.onSecondary)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Fechar") } }
     )
 }

@@ -283,7 +283,8 @@ object OfficialGearCatalog {
             secondaryDv = 15,
             secondaryEffectPt = "Vicia; enquanto fora do efeito primário, REF reduzido em -2."
         ),
-        OfficialDlcGearCatalog.emeraldCityDrug
+        OfficialDlcGearCatalog.emeraldCityDrug,
+        OfficialDangerGalGearAndLore.piranhaSmashDrug
     )
 
     val therapies: List<OfficialTherapySpec> = listOf(
@@ -337,5 +338,7 @@ object OfficialGearCatalog {
         armorAndShields + rangedWeapons + meleeWeapons + exoticWeapons + generalGear +
             OfficialWeaponsAndDefensesCatalog.masterGearAdditions +
             OfficialDlcGearCatalog.allDlcPurchaseGear +
-            OfficialBlackChromeGearCatalog.allBlackChromePurchaseGear
+            OfficialBlackChromeGearCatalog.allBlackChromePurchaseGear +
+            OfficialStealthAndAgentsCatalog.allStealthAndAgentPurchaseGear +
+            OfficialDangerGalGearAndLore.dgdPurchaseGear
 }

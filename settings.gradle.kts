@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Redline Solo"
+rootProject.name = "CYBERPUNK RED"
 
 include(":app")

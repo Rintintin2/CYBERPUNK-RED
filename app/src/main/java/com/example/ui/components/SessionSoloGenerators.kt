@@ -34,16 +34,24 @@ import androidx.compose.ui.unit.dp
 import com.example.core.rules.DatepathRollResult
 import com.example.core.rules.EncounterRollResult
 import com.example.core.rules.EncounterTimeOfDay
+import com.example.core.rules.OfficialDangerGalNpcs
 import com.example.core.rules.OfficialDlcNpcsAndNets
 import com.example.core.rules.OfficialEconomyAndProgression
+import com.example.core.rules.OfficialGangsAndCitizensCatalog
 import com.example.core.rules.OfficialHookBookData
 import com.example.core.rules.OfficialNpcCatalog
 import com.example.core.rules.OfficialNpcSpec
+import com.example.core.rules.OfficialSinglePlayerPlusCatalog
+import com.example.core.rules.OfficialStreetratPregensCatalog
 import com.example.core.rules.OfficialTalesAndHookBookCatalog
 import com.example.core.rules.PlotHookSpec
 import com.example.core.rules.SalvageAttemptResult
 import com.example.core.rules.SalvageCategory
 import com.example.core.rules.SalvageWorthTier
+import com.example.core.rules.SoloNpcPersonalityBundle
+import com.example.core.rules.SoloOracleYesNoResult
+import com.example.core.rules.SoloPlusRollResult
+import com.example.core.rules.SoloPlusTableCategory
 import com.example.core.rules.WeatherRollResult
 import com.example.core.rules.WeatherSeason
 import com.example.ui.theme.CyberAmber
@@ -61,6 +69,9 @@ fun SoloGeneratorsDialog(
     lastDatepathResult: DatepathRollResult? = null,
     lastPlotHook: PlotHookSpec? = null,
     lastRcVendorPrompt: String? = null,
+    lastSoloPlusRoll: SoloPlusRollResult? = null,
+    lastNpcPersonalityBundle: SoloNpcPersonalityBundle? = null,
+    lastSoloOracleResult: SoloOracleYesNoResult? = null,
     onRollEncounter: (EncounterTimeOfDay) -> Unit,
     onSpawnNpc: (OfficialNpcSpec, Int) -> Unit,
     onRollStreetPrompt: (String) -> Unit,
@@ -69,14 +80,23 @@ fun SoloGeneratorsDialog(
     onRollDatepath: () -> Unit = {},
     onRollPlotHook: (String?) -> Unit = {},
     onRollRcVendor: () -> Unit = {},
+    onRollSoloPlusTable: (String) -> Unit = {},
+    onRollNpcPersonality: () -> Unit = {},
+    onAskSoloOracle: (String, String, Int) -> Unit = { _, _, _ -> },
     onDismiss: () -> Unit
 ) {
     var selectedTime by remember { mutableStateOf(EncounterTimeOfDay.EVENING) }
-    var npcPoolIndex by remember { mutableIntStateOf(0) } // 0=Padrão(10), 1=Hardened(16), 2=Fixers&TOTR+(12)
-    val npcPool = when (npcPoolIndex) {
-        1 -> OfficialDlcNpcsAndNets.hardenedNpcs
-        2 -> OfficialTalesAndHookBookCatalog.namedDlcNpcs
-        else -> OfficialNpcCatalog.allNpcs
+    var npcPoolIndex by remember { mutableIntStateOf(0) } // 0..6
+    val npcPool = remember(npcPoolIndex) {
+        when (npcPoolIndex) {
+            1 -> OfficialDlcNpcsAndNets.hardenedNpcs
+            2 -> OfficialTalesAndHookBookCatalog.namedDlcNpcs
+            3 -> OfficialStreetratPregensCatalog.allPregens.map { it.toNpcSpec() }
+            4 -> OfficialGangsAndCitizensCatalog.gangGuideEntries.map { it.statCard }
+            5 -> OfficialGangsAndCitizensCatalog.everydayCitizens.map { it.statCard }
+            6 -> OfficialDangerGalNpcs.allDgdNpcs.map { it.npc }
+            else -> OfficialNpcCatalog.allNpcs
+        }
     }
     var selectedNpc by remember(npcPoolIndex) { mutableStateOf(npcPool.first()) }
     var npcCount by remember { mutableIntStateOf(2) }
@@ -86,6 +106,24 @@ fun SoloGeneratorsDialog(
     var selectedSalvageCategory by remember { mutableStateOf<SalvageCategory?>(null) }
     var selectedHookDistrict by remember { mutableStateOf<String?>(null) }
 
+    var oracleQuestion by remember { mutableStateOf("A porta dos fundos está destrancada?") }
+    var oracleOddsIndex by remember { mutableIntStateOf(1) } // 0=Improvável DV8, 1=50/50 DV5, 2=Provável DV3
+    val oracleOddsOptions = remember {
+        listOf(
+            "Improvável (DV8)" to 8,
+            "50/50 (DV5)" to 5,
+            "Provável (DV3)" to 3
+        )
+    }
+
+    var selectedSoloCategory by remember { mutableStateOf(SoloPlusTableCategory.CHARACTER) }
+    val filteredSoloTables = remember(selectedSoloCategory) {
+        OfficialSinglePlayerPlusCatalog.allTables.filter { it.category == selectedSoloCategory }
+    }
+    var selectedSoloTable by remember(selectedSoloCategory) {
+        mutableStateOf(filteredSoloTables.first())
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Geradores Solo, Clima & Hostis") },
@@ -94,6 +132,113 @@ fun SoloGeneratorsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                CyberPanel(accentColor = CyberEmerald) {
+                    Text("ORÁCULO SOLO (1d10) & PERFIL NPC (MODO SOLO+)", style = MaterialTheme.typography.labelLarge, color = CyberEmerald)
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedTextField(
+                        value = oracleQuestion,
+                        onValueChange = { oracleQuestion = it },
+                        label = { Text("Pergunta Fechada (Sim/Não)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("solo_oracle_question_input")
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(oracleOddsOptions.indices.toList()) { idx ->
+                            val (label, _) = oracleOddsOptions[idx]
+                            FilterChip(
+                                selected = oracleOddsIndex == idx,
+                                onClick = { oracleOddsIndex = idx },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = {
+                                val (oddsLabel, dv) = oracleOddsOptions[oracleOddsIndex]
+                                onAskSoloOracle(oracleQuestion, oddsLabel, dv)
+                            },
+                            enabled = oracleQuestion.isNotBlank(),
+                            colors = ButtonDefaults.buttonColors(containerColor = CyberEmerald),
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("ask_solo_oracle_button")
+                        ) {
+                            Text("Oráculo 1d10", color = MaterialTheme.colorScheme.onPrimary)
+                        }
+                        OutlinedButton(
+                            onClick = onRollNpcPersonality,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("roll_npc_personality_button")
+                        ) {
+                            Text("Perfil NPC")
+                        }
+                    }
+                    lastSoloOracleResult?.let { res ->
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "[1d10=${res.roll1d10} vs DV${res.targetDv}] ${res.answerPt}" +
+                                (res.twistPt?.let { " — $it" } ?: ""),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CyberCyan
+                        )
+                    }
+                    lastNpcPersonalityBundle?.let { npc ->
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Motivação: ${npc.motivationPt}\nCompetência: ${npc.competencePt}\nAgressão: ${npc.aggressionPt}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CyberAmber
+                        )
+                    }
+                }
+
+                CyberPanel(accentColor = CyberCyan) {
+                    Text("SINGLE PLAYER MODE+ (22 TABELAS OFICIAIS)", style = MaterialTheme.typography.labelLarge, color = CyberCyan)
+                    Spacer(Modifier.height(6.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(SoloPlusTableCategory.entries) { cat ->
+                            FilterChip(
+                                selected = selectedSoloCategory == cat,
+                                onClick = { selectedSoloCategory = cat },
+                                label = { Text(cat.labelPt) }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(filteredSoloTables, key = { it.id }) { tbl ->
+                            FilterChip(
+                                selected = selectedSoloTable.id == tbl.id,
+                                onClick = { selectedSoloTable = tbl },
+                                label = { Text("${tbl.titlePt} (${tbl.dieLabel})") }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedButton(
+                        onClick = { onRollSoloPlusTable(selectedSoloTable.id) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("roll_solo_plus_table_button")
+                    ) {
+                        Text("Rolar: ${selectedSoloTable.titlePt} (${selectedSoloTable.dieLabel})")
+                    }
+                    lastSoloPlusRoll?.let { roll ->
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "[${roll.tableTitlePt} • ${roll.dieLabel}=${roll.rollValue}] ${roll.resultTextPt}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = CyberAmber
+                        )
+                    }
+                }
+
                 CyberPanel(accentColor = RedlineCrimson) {
                     Text("ENCONTRO ALEATÓRIO (d100 • pp. 417–424)", style = MaterialTheme.typography.labelLarge, color = RedlineCrimson)
                     Spacer(Modifier.height(6.dp))
@@ -141,30 +286,24 @@ fun SoloGeneratorsDialog(
                 }
 
                 CyberPanel(accentColor = CyberCyan) {
-                    Text("INVOCAR NPC / HARDENED / NOMEADOS", style = MaterialTheme.typography.labelLarge, color = CyberCyan)
+                    Text("INVOCAR NPC / GANGUES / DGD (210+ PERFIS)", style = MaterialTheme.typography.labelLarge, color = CyberCyan)
                     Spacer(Modifier.height(6.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        item {
+                        val pools = listOf(
+                            0 to "Padrão (10)",
+                            1 to "Endurecidos (16)",
+                            2 to "Fixers & TOTR+ (12)",
+                            3 to "Single Shot (10)",
+                            4 to "Gangues (44)",
+                            5 to "Pessoas (20)",
+                            6 to "DGD NPCs (118)"
+                        )
+                        items(pools) { (idx, label) ->
                             FilterChip(
-                                selected = npcPoolIndex == 0,
-                                onClick = { npcPoolIndex = 0 },
-                                label = { Text("Padrão (10)") }
-                            )
-                        }
-                        item {
-                            FilterChip(
-                                selected = npcPoolIndex == 1,
-                                onClick = { npcPoolIndex = 1 },
-                                label = { Text("Endurecidos (16)") },
-                                modifier = Modifier.testTag("npc_hardened_toggle")
-                            )
-                        }
-                        item {
-                            FilterChip(
-                                selected = npcPoolIndex == 2,
-                                onClick = { npcPoolIndex = 2 },
-                                label = { Text("Fixers & TOTR+ (12)") },
-                                modifier = Modifier.testTag("npc_named_dlc_toggle")
+                                selected = npcPoolIndex == idx,
+                                onClick = { npcPoolIndex = idx },
+                                label = { Text(label) },
+                                modifier = Modifier.testTag("npc_pool_$idx")
                             )
                         }
                     }
