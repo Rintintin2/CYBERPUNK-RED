@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Redline Solo</string>
+    <string name="nav_campaigns">Campanha</string>
+    <string name="nav_character">Edgerunner</string>
+    <string name="nav_session">Sessão</string>
+    <string name="nav_systems">Sistemas</string>
+    <string name="nav_rules">Regras PDF</string>
+    <string name="cd_cyber_banner">Panorâmica noturna da metrópole cyberpunk</string>
+    <string name="cd_edgerunner_avatar">Retrato estilizado de Edgerunner</string>
+    <string name="cd_add_action">Criar novo registro</string>
+    <string name="cd_roll_dice">Executar rolagem determinística</string>
+</resources>

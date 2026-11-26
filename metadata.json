@@ -1,0 +1,6 @@
+{
+  "name": "Redline Solo",
+  "description": "Plataforma Android nativa de RPG solo inspirada em Cyberpunk RED com motor de regras determinístico, persistência Room e arquitetura modular para Mestre de Jogo com IA e biblioteca de PDFs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
